@@ -68,7 +68,8 @@ Aplikasi ini sengaja dibuat **sederhana**:
   - penempatan cabang & jabatan.
 - **Manajemen Cabang**:
   - kode, tipe fasilitas, cluster wilayah, PIC;
-  - jam gate atau 24 jam, alamat, status.
+  - jam gate atau 24 jam, alamat, status;
+  - **area GPS absen**: titik koordinat (tempel dari Google Maps / lokasi saat ini) + radius, dengan pratinjau peta.
 - **Master Jabatan** — daftar jabatan dan status aktifnya.
 - **Pengguna & Akses**:
   - tambah akun login (email + kata sandi awal), dengan pencarian, filter role, dan paginasi;
@@ -174,6 +175,7 @@ Jalankan file berikut **berurutan** di **Supabase → SQL Editor**:
 | 4 | `supabase/migrations/20261020030000_free_format_codes.sql` | Kode cabang & NIK bebas format (maks. 30 karakter). |
 | 5 | `supabase/migrations/20261020040000_assignment_from_join_date.sql` | Penempatan pertama dimulai dari tanggal bergabung. |
 | 6 | `supabase/migrations/20261021000000_role_based_rls.sql` | Role akun (admin / SPV / karyawan) + RLS per role. Akun yang sudah ada otomatis jadi admin. |
+| 7 | `supabase/migrations/20261021010000_branch_geofence.sql` | Area GPS absen per cabang (titik + radius) untuk app mobile. |
 | — | `supabase/seed_demo.sql` | *Opsional* — data demo (cabang & karyawan fiktif). |
 
 > **Instalasi baru:** jalankan migrasi #6 **setelah** membuat akun admin pertama (langkah 2), atau jalankan ulang file itu setelahnya. Selama tabel `app_user` masih kosong, akun yang sudah ada otomatis dijadikan admin.

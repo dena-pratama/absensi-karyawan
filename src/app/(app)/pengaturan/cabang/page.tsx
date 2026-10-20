@@ -32,7 +32,7 @@ const TABLE_LABEL: Record<string, string> = { branch: "cabang", employee: "karya
 const ACTION_LABEL = { insert: "menambahkan", update: "memperbarui", delete: "menghapus" } as const;
 
 async function Content() {
-  const [branches, clusters, employees, roles, audit] = await Promise.all([
+  const [{ branches, geoReady }, clusters, employees, roles, audit] = await Promise.all([
     getBranchSettings(),
     getClusterOptions(),
     getEmployeeSettings(),
@@ -59,6 +59,7 @@ async function Content() {
   return (
     <BranchManager
       branches={branches}
+      geoReady={geoReady}
       clusters={clusters}
       employees={employees
         .filter((e) => e.isActive)

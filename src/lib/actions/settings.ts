@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { BranchSetting, EmployeeSetting, RoleSetting } from "@/lib/data/settings";
 import { BRANCH_TYPE_LABEL, CODE_MAX, type BranchType } from "@/lib/labels";
 import { parseDateParam, todayWIB } from "@/lib/format";
+import { GEOFENCE_MAX_M, GEOFENCE_MIN_M, isValidLatLng } from "@/lib/geo";
 import { READ_ONLY_ERROR, isAdmin } from "@/lib/data/access";
 import { createClient } from "@/lib/supabase/server";
 
@@ -155,10 +156,14 @@ function validateBranch(b: BranchSetting): string | null {
   if (!b.name.trim()) return `Nama cabang ${b.code} wajib diisi.`;
   if (!(b.type in BRANCH_TYPE_LABEL)) return `Tipe cabang ${b.code} tidak valid.`;
   if (!b.is24 && (!TIME_RE.test(b.open) || !TIME_RE.test(b.close))) return `Jam gate ${b.code} wajib diisi (atau pilih 24 jam).`;
+  if (b.point && !isValidLatLng(b.point.lat, b.point.lng)) return `Titik GPS ${b.code} tidak valid.`;
+  if (!Number.isInteger(b.radius) || b.radius < GEOFENCE_MIN_M || b.radius > GEOFENCE_MAX_M)
+    return `Radius GPS ${b.code} harus ${GEOFENCE_MIN_M}–${GEOFENCE_MAX_M} meter.`;
   return null;
 }
 
-function branchColumns(b: BranchSetting) {
+/** geo=false: kolom area GPS belum ada di database (migrasi branch_geofence belum dijalankan). */
+function branchColumns(b: BranchSetting, geo: boolean) {
   return {
     code: b.code.trim(),
     name: b.name.trim(),
@@ -171,10 +176,11 @@ function branchColumns(b: BranchSetting) {
     gate_close_time: b.is24 ? null : b.close,
     // Toggle hanya Aktif/Nonaktif; status "maintenance" lama dipertahankan selama tetap aktif.
     status: b.active ? (b.originalStatus === "maintenance" ? "maintenance" : "aktif") : "nonaktif",
+    ...(geo && { latitude: b.point?.lat ?? null, longitude: b.point?.lng ?? null, geofence_radius_m: b.radius }),
   };
 }
 
-export async function applyBranchChanges(rows: BranchSetting[]): Promise<ApplyResult> {
+export async function applyBranchChanges(rows: BranchSetting[], geo = true): Promise<ApplyResult> {
   if (!(await isAdmin())) return { ok: false, error: READ_ONLY_ERROR, applied: 0 };
   for (const r of rows) {
     const err = validateBranch(r);
@@ -184,8 +190,8 @@ export async function applyBranchChanges(rows: BranchSetting[]): Promise<ApplyRe
   let applied = 0;
   for (const r of rows) {
     const query = isNew(r.id)
-      ? supabase.from("branch").insert(branchColumns(r))
-      : supabase.from("branch").update(branchColumns(r)).eq("id", r.id);
+      ? supabase.from("branch").insert(branchColumns(r, geo))
+      : supabase.from("branch").update(branchColumns(r, geo)).eq("id", r.id);
     const { error } = await query;
     if (error) {
       revalidatePath("/", "layout");

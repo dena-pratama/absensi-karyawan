@@ -94,7 +94,7 @@ export function createToolExecutor(today: string) {
   const proposals: SignedProposal[] = [];
 
   const branchByCode = async () => {
-    const branches = await getBranchSettings();
+    const { branches } = await getBranchSettings();
     return { branches, byCode: new Map(branches.map((b) => [b.code.toUpperCase(), b])) };
   };
 

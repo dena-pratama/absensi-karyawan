@@ -5,6 +5,62 @@ Format: entri terbaru di paling atas.
 
 ---
 
+## 2026-10-21 — Peta interaktif untuk memilih titik cabang
+
+- Feedback user: belum bisa memilih titik langsung di peta, karena sebelumnya hanya ada pratinjau iframe statis.
+- Dependency baru `leaflet@1.9.4` (+ `@types/leaflet`), peta OpenStreetMap gratis tanpa API key.
+  - `npm audit` melaporkan 5 high, semuanya dari tooling ESLint (`eslint-config-next` → `braces`), sudah ada sebelumnya dan tidak terkait leaflet.
+- `cabang/map-picker.tsx`:
+  - Leaflet di-import dinamis (browser saja);
+  - **klik peta** untuk menaruh / memindahkan titik;
+  - **lingkaran radius** cyan mengikuti radius yang dipilih;
+  - peta otomatis zoom ke lingkaran saat titik baru / di luar layar;
+  - scroll-wheel zoom dimatikan supaya form modal tetap bisa di-scroll.
+- `geo-area-field.tsx` disusun ulang:
+  - **Cari tempat / alamat** lewat OpenStreetMap Nominatim, hanya saat Cari / Enter ditekan sesuai kebijakan pemakaian. Enter tidak men-submit form modal.
+  - Tombol **Lokasi saya**.
+  - Peta interaktif.
+  - Field koordinat (tetap bisa tempel dari Google Maps) dan radius.
+  - Semua sumber titik saling sinkron.
+- Iframe pratinjau statis dihapus.
+- **Verifikasi di Browser pane** (form Edit DKT001A, ditutup dengan Batal tanpa disimpan):
+  - klik peta → koordinat terisi + lingkaran tampil;
+  - radius 500 m → lingkaran membesar;
+  - cari "Monas Jakarta" → 2 hasil, dipilih → titik pindah & peta zoom.
+- `tsc` + `eslint` lolos. Halaman uji sementara `/login/map-test` sudah dihapus.
+
+---
+
+## 2026-10-21 — Area GPS absen per cabang
+
+- **Konteks:** app Android nanti memakai **GPS + kamera selfie** (bukan ceklis). User minta pengaturan area GPS dibuat dulu di web, pada form tambah / edit cabang.
+- **Database:**
+  - Migrasi `supabase/migrations/20261021010000_branch_geofence.sql` (**belum dijalankan**) menambah kolom `branch.latitude`, `branch.longitude`, dan `branch.geofence_radius_m` (default 100).
+  - Check: titik diisi berpasangan dan valid; radius 10–5000 m.
+  - Perubahan tercatat otomatis di audit log.
+- **`lib/geo.ts`** (dipakai client & server):
+  - batas radius + preset 50/100/200/500 m;
+  - `parseLatLng()` menerima salinan koordinat Google Maps, link Maps (`@lat,lng` / `?q=`), atau dua angka (koma desimal juga);
+  - `formatLatLng()` dan `mapsUrl()`.
+- **Form cabang** — bagian baru **Area GPS Absen** (`cabang/geo-area-field.tsx`):
+  - input titik koordinat (tempel dari Maps) atau tombol **Pakai lokasi saya** (geolocation browser, dengan peringatan akurasi);
+  - radius lewat preset atau angka;
+  - pratinjau peta OpenStreetMap (iframe, tanpa library), link "Buka di Google Maps", dan tombol "Hapus titik".
+- **Daftar cabang:**
+  - badge "GPS · radius 100 m" atau "GPS belum diatur" (koordinat di tooltip);
+  - ekspor CSV ditambah kolom Titik GPS & Radius.
+- **Transisi aman:**
+  - sebelum migrasi dijalankan, `getBranchSettings()` mendeteksi kolom belum ada (42703) → `geoReady=false`;
+  - bagian GPS dinonaktifkan dengan petunjuk migrasi;
+  - `applyBranchChanges(rows, geo)` tidak mengirim kolom GPS, jadi edit cabang tetap jalan.
+- **Pemanggil `getBranchSettings()`** (Manajemen Karyawan, tools AI) disesuaikan ke bentuk `{ branches, geoReady }`.
+- **Verifikasi:**
+  - `tsc`, `eslint`, dan `next build` lolos;
+  - `parseLatLng` dites 10 kasus (format Maps, link, koma desimal, input tidak valid / di luar rentang) dan semua sesuai;
+  - form asli belum dicoba (butuh login + migrasi).
+
+---
+
 ## 2026-10-21 — Tambah akun & filter di Pengguna & Akses
 
 - Permintaan user: akun bisa ditambah dari Pengaturan, dan daftar akun diberi filter supaya tidak memanjang ke bawah.
@@ -25,7 +81,7 @@ Format: entri terbaru di paling atas.
   - scope role, fitur Pengguna & Akses, tabel `app_user`, migrasi #6, dan env `SUPABASE_SECRET_KEY`;
   - poin keamanan baru;
   - catatan instalasi baru (migrasi #6 dijalankan setelah akun admin pertama dibuat).
-- Verifikasi: `tsc`, `eslint`, dan `next build` lolos. Pembuatan akun belum dites (butuh secret key & login admin).
+- Verifikasi: `tsc`, `eslint`, dan `next build` lolos. User sudah mengisi `SUPABASE_SECRET_KEY` di `.env.local` & Vercel, dan Tambah Akun berhasil.
 
 ---
 

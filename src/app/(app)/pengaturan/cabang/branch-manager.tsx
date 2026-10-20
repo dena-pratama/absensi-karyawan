@@ -5,8 +5,10 @@ import { useRouter } from "next/navigation";
 import { Icon } from "@/components/icon";
 import { applyBranchChanges } from "@/lib/actions/settings";
 import type { BranchSetting, Option } from "@/lib/data/settings";
+import { formatLatLng, GEOFENCE_DEFAULT_M, GEOFENCE_MAX_M, GEOFENCE_MIN_M } from "@/lib/geo";
 import { BRANCH_TYPE_LABEL, CODE_MAX, type BranchType } from "@/lib/labels";
 import { newId, useStaged } from "../_components/staged";
+import { GeoAreaField } from "./geo-area-field";
 import {
   ApplyBar,
   ChangeBadge,
@@ -46,6 +48,8 @@ const emptyBranch = (): BranchSetting => ({
   active: true,
   originalStatus: "aktif",
   staffCount: 0,
+  point: null,
+  radius: GEOFENCE_DEFAULT_M,
 });
 
 function csvCell(v: string | number) {
@@ -55,11 +59,14 @@ function csvCell(v: string | number) {
 
 export function BranchManager({
   branches,
+  geoReady,
   clusters,
   employees,
   audit,
 }: {
   branches: BranchSetting[];
+  /** false = migrasi branch_geofence belum dijalankan (area GPS belum bisa diatur). */
+  geoReady: boolean;
   clusters: Option[];
   employees: Option[];
   audit: AuditView[];
@@ -100,6 +107,7 @@ export function BranchManager({
     if (!b.code) return setFormError("Kode cabang wajib diisi.");
     if (!b.name) return setFormError("Nama cabang wajib diisi.");
     if (!b.is24 && (!b.open || !b.close)) return setFormError("Isi jam buka & tutup gate, atau pilih 24 jam.");
+    if (b.radius < GEOFENCE_MIN_M || b.radius > GEOFENCE_MAX_M) return setFormError(`Radius GPS harus ${GEOFENCE_MIN_M}–${GEOFENCE_MAX_M} meter.`);
     if (staged.rows.some((r) => r.id !== b.id && r.code.toLowerCase() === b.code.toLowerCase())) return setFormError(`Kode ${b.code} sudah dipakai.`);
     staged.upsert(b);
     setEditing(null);
@@ -107,7 +115,7 @@ export function BranchManager({
 
   const apply = () =>
     startSaving(async () => {
-      const res = await applyBranchChanges(staged.changes);
+      const res = await applyBranchChanges(staged.changes, geoReady);
       setToast(
         res.ok
           ? { text: `${res.applied} perubahan cabang diterapkan.`, error: false }
@@ -117,7 +125,7 @@ export function BranchManager({
     });
 
   const exportCsv = () => {
-    const header = ["Kode", "Nama", "Tipe", "Cluster", "Alamat", "PIC", "Jam Gate", "Status", "Jumlah Staf"];
+    const header = ["Kode", "Nama", "Tipe", "Cluster", "Alamat", "PIC", "Jam Gate", "Status", "Jumlah Staf", "Titik GPS", "Radius GPS (m)"];
     const lines = filtered.map((b) => [
       b.code,
       b.name,
@@ -128,6 +136,8 @@ export function BranchManager({
       b.is24 ? "24 Jam" : `${b.open} - ${b.close}`,
       b.active ? "Aktif" : "Nonaktif",
       b.staffCount,
+      b.point ? formatLatLng(b.point) : "",
+      b.radius,
     ]);
     const csv = "﻿" + [header, ...lines].map((l) => l.map(csvCell).join(",")).join("\r\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
@@ -248,6 +258,15 @@ export function BranchManager({
                       <td className="py-3 px-4">
                         <div className="font-semibold text-gray-100">{BRANCH_TYPE_LABEL[b.type]}</div>
                         <div className="text-gray-400 mt-0.5 max-w-[220px]">{b.address || clusterById.get(b.clusterId) || "-"}</div>
+                        {geoReady && (
+                          <div
+                            className={`mt-1 inline-flex items-center gap-1 text-[10px] ${b.point ? "text-emerald-400" : "text-gray-500"}`}
+                            title={b.point ? formatLatLng(b.point) : undefined}
+                          >
+                            <Icon name={b.point ? "my_location" : "location_off"} className="text-[13px]" />
+                            {b.point ? `GPS · radius ${b.radius} m` : "GPS belum diatur"}
+                          </div>
+                        )}
                       </td>
                       <td className="py-3 px-4">
                         {pic ? (
@@ -447,6 +466,18 @@ export function BranchManager({
                 onChange={(e) => setEditing({ ...editing, address: e.target.value })}
               />
             </Field>
+            <GeoAreaField
+              key={editing.id}
+              point={editing.point}
+              radius={editing.radius}
+              disabled={!geoReady}
+              onChange={(v) => setEditing({ ...editing, ...v })}
+            />
+            {!geoReady && (
+              <p className="text-[11px] text-amber-300 -mt-2">
+                Jalankan <code className="font-mono">supabase/migrations/20261021010000_branch_geofence.sql</code> di Supabase untuk mengaktifkan area GPS.
+              </p>
+            )}
             <div className="flex items-center justify-between rounded-lg bg-panel-inset border border-line-strong px-3 py-2.5">
               <span className="text-xs text-slate-300">Cabang aktif</span>
               <Toggle checked={editing.active} onChange={(v) => setEditing({ ...editing, active: v })} label="Cabang aktif" />

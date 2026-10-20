@@ -22,6 +22,6 @@ export default function PengaturanKaryawanPage() {
 }
 
 async function Content() {
-  const [employees, branches, roles] = await Promise.all([getEmployeeSettings(), getBranchSettings(), getRoleSettings()]);
+  const [employees, { branches }, roles] = await Promise.all([getEmployeeSettings(), getBranchSettings(), getRoleSettings()]);
   return <EmployeeManager employees={employees} branches={branches} roles={roles} />;
 }

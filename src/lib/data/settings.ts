@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
+import { GEOFENCE_DEFAULT_M, type LatLng } from "@/lib/geo";
 import type { BranchType } from "@/lib/labels";
 
 /* Tipe data yang dikirim ke halaman Pengaturan (juga dipakai client untuk staging). */
@@ -30,6 +31,10 @@ export type BranchSetting = {
   active: boolean;
   originalStatus: "aktif" | "maintenance" | "nonaktif";
   staffCount: number;
+  /** Titik pusat area GPS absen; null = belum diatur. */
+  point: LatLng | null;
+  /** Radius area GPS absen (meter). */
+  radius: number;
 };
 
 export type RoleSetting = {
@@ -90,32 +95,46 @@ export async function getEmployeeSettings(): Promise<EmployeeSetting[]> {
   });
 }
 
-export async function getBranchSettings(): Promise<BranchSetting[]> {
+const BRANCH_COLUMNS =
+  "id, code, name, branch_type, cluster_id, address, pic_employee_id, is_24_hours, gate_open_time, gate_close_time, status";
+const GEO_COLUMNS = "latitude, longitude, geofence_radius_m";
+
+/**
+ * Data cabang untuk Pengaturan. geoReady=false bila kolom area GPS belum ada
+ * (migrasi branch_geofence belum dijalankan) — halaman tetap jalan tanpa GPS.
+ */
+export async function getBranchSettings(): Promise<{ branches: BranchSetting[]; geoReady: boolean }> {
   const supabase = await client();
-  const [{ data, error }, assignments] = await Promise.all([
-    supabase
-      .from("branch")
-      .select("id, code, name, branch_type, cluster_id, address, pic_employee_id, is_24_hours, gate_open_time, gate_close_time, status")
-      .order("code"),
+  const [first, assignments] = await Promise.all([
+    supabase.from("branch").select(`${BRANCH_COLUMNS}, ${GEO_COLUMNS}`).order("code"),
     activeAssignments(),
   ]);
+  // 42703 = kolom tidak ada
+  const geoReady = first.error?.code !== "42703";
+  const { data, error } = geoReady ? first : await supabase.from("branch").select(BRANCH_COLUMNS).order("code");
   if (error) throw new Error(`Gagal memuat cabang: ${error.message}`);
 
-  return (data ?? []).map((b) => ({
-    id: b.id as string,
-    code: b.code as string,
-    name: b.name as string,
-    type: b.branch_type as BranchType,
-    clusterId: (b.cluster_id as string | null) ?? "",
-    address: (b.address as string | null) ?? "",
-    picId: (b.pic_employee_id as string | null) ?? "",
-    is24: b.is_24_hours as boolean,
-    open: ((b.gate_open_time as string | null) ?? "").slice(0, 5),
-    close: ((b.gate_close_time as string | null) ?? "").slice(0, 5),
-    active: b.status !== "nonaktif",
-    originalStatus: b.status as BranchSetting["originalStatus"],
-    staffCount: assignments.filter((a) => a.branch_id === b.id).length,
-  }));
+  const branches = (data ?? []).map((row) => {
+    const b = row as typeof row & { latitude?: number | null; longitude?: number | null; geofence_radius_m?: number };
+    return {
+      id: b.id as string,
+      code: b.code as string,
+      name: b.name as string,
+      type: b.branch_type as BranchType,
+      clusterId: (b.cluster_id as string | null) ?? "",
+      address: (b.address as string | null) ?? "",
+      picId: (b.pic_employee_id as string | null) ?? "",
+      is24: b.is_24_hours as boolean,
+      open: ((b.gate_open_time as string | null) ?? "").slice(0, 5),
+      close: ((b.gate_close_time as string | null) ?? "").slice(0, 5),
+      active: b.status !== "nonaktif",
+      originalStatus: b.status as BranchSetting["originalStatus"],
+      staffCount: assignments.filter((a) => a.branch_id === b.id).length,
+      point: b.latitude != null && b.longitude != null ? { lat: b.latitude, lng: b.longitude } : null,
+      radius: b.geofence_radius_m ?? GEOFENCE_DEFAULT_M,
+    };
+  });
+  return { branches, geoReady };
 }
 
 export async function getRoleSettings(): Promise<RoleSetting[]> {
