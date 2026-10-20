@@ -65,6 +65,13 @@ export function monthRange(month: string) {
   return { start: `${month}-01`, end: `${month}-${String(days).padStart(2, "0")}`, days };
 }
 
+/** Geser tanggal "YYYY-MM-DD" sebanyak `delta` hari. */
+export function shiftDay(ymd: string, delta: number): string {
+  const d = new Date(`${ymd}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + delta);
+  return d.toISOString().slice(0, 10);
+}
+
 export function shiftMonth(month: string, delta: number): string {
   const [y, m] = month.split("-").map(Number);
   const d = new Date(Date.UTC(y, m - 1 + delta, 1));

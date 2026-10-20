@@ -1,13 +1,8 @@
 import { Suspense } from "react";
 import { PageHeader } from "@/components/shell/page-layout";
 import { getSettingsCounts } from "@/lib/data/settings";
-import { getShellData } from "@/lib/data/shell";
+import { BranchCrumb } from "@/components/shell/branch-crumb";
 import { SettingsTabs, type SettingsTab } from "./settings-tabs";
-
-async function BranchCode() {
-  const { activeBranch } = await getShellData();
-  return activeBranch?.code ?? "—";
-}
 
 async function TabsWithCounts({ active }: { active: SettingsTab }) {
   const counts = await getSettingsCounts();
@@ -18,11 +13,7 @@ async function TabsWithCounts({ active }: { active: SettingsTab }) {
 export function SettingsHeader({ tab }: { tab: SettingsTab }) {
   return (
     <PageHeader
-      crumb={
-        <Suspense fallback="…">
-          <BranchCode />
-        </Suspense>
-      }
+      crumb={<BranchCrumb />}
       current="Pengaturan & Master Data Hub"
       title="Pengaturan Operasional & Master Data"
       below={

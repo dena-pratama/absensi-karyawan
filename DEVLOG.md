@@ -5,6 +5,51 @@ Format: entri terbaru di paling atas.
 
 ---
 
+## 2026-10-20 — Favicon pakai ikon login
+
+- Favicon default Next (`src/app/favicon.ico`) dihapus dan diganti `src/app/icon.svg`.
+- Ikon baru = ikon Material Symbols `hub` dari logo di header halaman login, warna cyan `#00d2ff` di atas kotak membulat `#18202e` (warna kotak ikon login).
+- Next otomatis memasang `<link rel="icon" type="image/svg+xml">` di semua halaman.
+- Verifikasi: `/icon.svg` tersaji (200, `image/svg+xml`) dan dicek tampilannya di ukuran 64/32/16 px di Browser pane.
+
+---
+
+## 2026-10-20 — Dropdown cabang & pemilih tanggal Absensi Harian
+
+- **Pemilih cabang (topbar)**: `<select>` native (dropdown biru bawaan browser) diganti menu sendiri di `components/shell/branch-switcher.tsx`:
+  - panel sesuai tema;
+  - tiap cabang menampilkan titik status (aktif/maintenance/nonaktif), kode · nama, dan tipe fasilitas;
+  - cabang terpilih diberi tanda centang;
+  - kolom cari muncul bila cabang lebih dari 6;
+  - menu tertutup saat klik di luar atau tekan Esc;
+  - spinner tampil selama berpindah cabang.
+- **Tanggal di Absensi Harian**:
+  - Penyebab: ikon kalender native tidak terlihat di light mode, karena `[color-scheme:dark]` di-hardcode.
+  - Sekarang ada tombol ‹ hari sebelumnya, tombol kalender (membuka picker via `showPicker()`, begitu juga saat field diklik), tombol › hari berikutnya (nonaktif di hari ini), dan tombol "Hari ini" bila sedang melihat tanggal lain.
+  - `color-scheme` mengikuti tema.
+  - Helper baru `shiftDay()` di `lib/format.ts`.
+- Verifikasi: `tsc` + `eslint` lolos. Tampilan asli belum dicek karena butuh login.
+
+---
+
+## 2026-10-20 — Fix: fokus form modal lompat balik ke field pertama
+
+- Laporan user: saat mengetik nama di modal Tambah Cabang / Karyawan, kursor terus kembali ke field Kode/ID.
+- Penyebab: `Modal` (`pengaturan/_components/ui.tsx`) punya efek `[open, onClose]` yang memfokus field pertama. Parent mengirim `onClose={() => setEditing(null)}` (fungsi baru tiap render), jadi setiap ketikan efek jalan ulang dan fokus pindah ke field pertama.
+- Perbaikan: `onClose` dibungkus `useEffectEvent`, dan efek kini hanya bergantung pada `open`. Autofocus hanya terjadi sekali saat modal dibuka. Berlaku untuk semua modal Pengaturan (karyawan, cabang, jabatan).
+- Verifikasi: `tsc` + `eslint` lolos. Modal asli belum dicoba langsung karena butuh login.
+
+---
+
+## 2026-10-20 — Strip "—" di breadcrumb dihapus
+
+- Feedback user: di halaman Absensi & Pengaturan breadcrumb tampil "— > Absensi Harian" (muncul saat belum ada cabang aktif).
+- Kode cabang di crumb dipindah ke komponen bersama `components/shell/branch-crumb.tsx` (`BranchCrumb`), menggantikan dua `BranchCode` kembar di `absensi-header.tsx` & `settings-header.tsx`. Bila belum ada cabang, isinya kosong (bukan "—").
+- `PageHeader`: crumb + pemisah `>` kini satu span (`empty:hidden` + `after:content-['>']`), jadi crumb yang kosong hilang bersama pemisahnya. Dashboard tetap menampilkan "Semua Cabang".
+- Verifikasi: `tsc`, `eslint`, `next build` lolos; perilaku span kosong/terisi dicek di Browser pane (halaman asli butuh login).
+
+---
+
 ## 2026-10-20 — QC kode & database (v0.2) + repo GitHub
 
 **Kode**
@@ -22,7 +67,7 @@ Format: entri terbaru di paling atas.
 - Perbaikan ada di migrasi baru `supabase/migrations/20261020020000_qc_cleanup.sql`, yang **belum dijalankan** (dijalankan admin di SQL Editor). Isinya hanya menambah index dan menghapus view yang tidak terpakai; tidak ada data yang berubah.
 
 **Repo**
-- Project dijadikan repo git (branch `main`, commit awal). `.env.local` dan `.claude/` tidak ikut ter-commit. Push ke GitHub (`Absensi-Ekspedisi-v0.2`; GitHub tidak mengizinkan spasi di nama repo) masih menunggu: GitHub CLI belum terpasang di laptop ini.
+- Project dijadikan repo git (branch `main`, commit awal). `.env.local` dan `.claude/` tidak ikut ter-commit. Di-push oleh user lewat VS Code ke `github.com/dena-pratama/absensi-karyawan` (branch `main`).
 
 ---
 

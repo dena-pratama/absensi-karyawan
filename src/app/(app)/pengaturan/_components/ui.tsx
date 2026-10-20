@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useEffectEvent, useRef } from "react";
 import { Icon } from "@/components/icon";
 
 /* Gaya input mengikuti modal "Tambah Entitas Baru" di desain. */
@@ -77,13 +77,17 @@ export function Modal({
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
+  // onClose dari parent biasanya arrow function baru tiap render; lewat Effect Event supaya
+  // efek tidak jalan ulang tiap ketikan (dulu fokus jadi lompat balik ke field pertama).
+  const close = useEffectEvent(() => onClose());
+
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
     window.addEventListener("keydown", onKey);
     ref.current?.querySelector<HTMLElement>("input, select, textarea")?.focus();
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 

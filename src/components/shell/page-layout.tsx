@@ -27,11 +27,9 @@ export function PageHeader({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 text-xs font-medium text-gray-400">
+            {/* Crumb yang ternyata kosong (mis. belum ada cabang) disembunyikan beserta pemisahnya */}
             {crumb && (
-              <>
-                <span>{crumb}</span>
-                <span className="text-gray-600">&gt;</span>
-              </>
+              <span className="empty:hidden after:content-['>'] after:ml-2 after:text-gray-600">{crumb}</span>
             )}
             <span className="text-cyan-400 font-semibold">{current}</span>
           </div>

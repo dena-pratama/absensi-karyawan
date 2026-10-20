@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/icon";
 import { saveAttendance, type AttendanceChange } from "@/lib/actions/attendance";
-import { initials } from "@/lib/format";
+import { initials, shiftDay } from "@/lib/format";
 import type { AttendanceStatus } from "@/lib/labels";
 
 export type FormRow = {
@@ -68,6 +68,15 @@ export function AttendanceForm({
   const [toast, setToast] = useState<{ text: string; error: boolean } | null>(null);
   const [saving, startSaving] = useTransition();
   const [navigating, startNavigating] = useTransition();
+  const dateRef = useRef<HTMLInputElement>(null);
+
+  const openPicker = () => {
+    try {
+      dateRef.current?.showPicker();
+    } catch {
+      dateRef.current?.focus(); // browser lama tanpa showPicker()
+    }
+  };
 
   // Data baru dari server (ganti tanggal / setelah simpan) → reset form.
   const [prevInitial, setPrevInitial] = useState(initial);
@@ -205,17 +214,62 @@ export function AttendanceForm({
               <Icon name="expand_more" className="absolute right-2 top-1/2 -translate-y-1/2 text-[16px] text-gray-400 pointer-events-none" />
             </span>
           </label>
-          <label className="flex items-center gap-2">
-            <span className="text-gray-400 shrink-0">Tanggal:</span>
-            <input
-              type="date"
-              value={date}
-              max={today}
-              disabled={navigating}
-              onChange={(e) => changeDate(e.target.value)}
-              className={`${control} py-1.5 px-3 font-medium text-brand-ink [color-scheme:dark] min-w-[140px] disabled:opacity-60`}
-            />
-          </label>
+          <div className="flex items-center gap-2">
+            <label htmlFor="tanggal-absensi" className="text-gray-400 shrink-0">
+              Tanggal:
+            </label>
+            <div className={`${control} flex items-center p-0.5 ${navigating ? "opacity-60" : ""}`}>
+              <button
+                type="button"
+                onClick={() => changeDate(shiftDay(date, -1))}
+                disabled={navigating}
+                aria-label="Hari sebelumnya"
+                className="p-1 rounded-md text-gray-400 hover:text-ink hover:bg-panel-raised transition-colors"
+              >
+                <Icon name="chevron_left" className="text-[18px]" />
+              </button>
+              {/* Ikon kalender bawaan disembunyikan; klik di mana pun pada field membuka picker. */}
+              <input
+                ref={dateRef}
+                id="tanggal-absensi"
+                type="date"
+                value={date}
+                max={today}
+                disabled={navigating}
+                onClick={openPicker}
+                onChange={(e) => changeDate(e.target.value)}
+                className="bg-transparent px-1.5 py-1 font-medium text-brand-ink cursor-pointer focus:outline-none [color-scheme:dark] light:[color-scheme:light] [&::-webkit-calendar-picker-indicator]:hidden"
+              />
+              <button
+                type="button"
+                onClick={openPicker}
+                disabled={navigating}
+                aria-label="Pilih tanggal dari kalender"
+                className="p-1 rounded-md text-gray-400 hover:text-brand-ink hover:bg-panel-raised transition-colors"
+              >
+                <Icon name="calendar_month" className="text-[18px]" />
+              </button>
+              <button
+                type="button"
+                onClick={() => changeDate(shiftDay(date, 1))}
+                disabled={navigating || date >= today}
+                aria-label="Hari berikutnya"
+                className="p-1 rounded-md text-gray-400 hover:text-ink hover:bg-panel-raised transition-colors disabled:opacity-30 disabled:pointer-events-none"
+              >
+                <Icon name="chevron_right" className="text-[18px]" />
+              </button>
+            </div>
+            {date !== today && (
+              <button
+                type="button"
+                onClick={() => changeDate(today)}
+                disabled={navigating}
+                className="px-2.5 py-1.5 rounded-lg border border-line text-gray-300 hover:text-brand-ink hover:border-cyan-500/50 transition-colors"
+              >
+                Hari ini
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
