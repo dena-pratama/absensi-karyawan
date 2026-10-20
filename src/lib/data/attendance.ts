@@ -1,0 +1,122 @@
+import "server-only";
+import { createClient } from "@/lib/supabase/server";
+import type { AttendanceStatus } from "@/lib/labels";
+
+export type JobRole = { id: string; code: string; name: string };
+
+export type RosterEntry = {
+  employeeId: string;
+  nik: string;
+  name: string;
+  phone: string | null;
+  contract: "tetap" | "pkwt" | "mitra";
+  joinDate: string | null;
+  roleId: string;
+  roleName: string;
+};
+
+export type AttendanceEntry = {
+  employeeId: string;
+  date: string;
+  status: AttendanceStatus;
+  note: string | null;
+  updatedAt: string;
+};
+
+type AssignmentRow = {
+  employee_id: string;
+  job_role_id: string;
+  employee: {
+    nik: string;
+    full_name: string;
+    phone_wa: string | null;
+    contract_type: RosterEntry["contract"];
+    join_date: string | null;
+  } | null;
+  job_role: { name: string } | null;
+};
+
+type AttendanceRow = {
+  employee_id: string;
+  attendance_date: string;
+  status: AttendanceStatus;
+  note: string | null;
+  updated_at: string;
+};
+
+export async function getJobRoles(): Promise<JobRole[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("job_role")
+    .select("id, code, name")
+    .eq("is_active", true)
+    .order("name");
+  if (error) throw new Error(`Gagal memuat jabatan: ${error.message}`);
+  return (data ?? []) as JobRole[];
+}
+
+/**
+ * Karyawan aktif yang ditempatkan di cabang pada rentang tanggal [from, to].
+ * Untuk satu hari: from = to = tanggal itu.
+ */
+export async function getRoster(branchId: string, from: string, to: string = from): Promise<RosterEntry[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("employee_assignment")
+    .select(
+      "employee_id, job_role_id, employee:employee_id!inner(nik, full_name, phone_wa, contract_type, join_date), job_role:job_role_id(name)",
+    )
+    .eq("branch_id", branchId)
+    .eq("employee.is_active", true)
+    .lte("valid_from", to)
+    .or(`valid_to.is.null,valid_to.gte.${from}`);
+  if (error) throw new Error(`Gagal memuat daftar karyawan: ${error.message}`);
+
+  // Satu karyawan bisa punya >1 penempatan dalam sebulan (mutasi) → ambil satu saja.
+  const seen = new Set<string>();
+  const roster: RosterEntry[] = [];
+  for (const row of (data ?? []) as unknown as AssignmentRow[]) {
+    if (!row.employee || seen.has(row.employee_id)) continue;
+    seen.add(row.employee_id);
+    roster.push({
+      employeeId: row.employee_id,
+      nik: row.employee.nik,
+      name: row.employee.full_name,
+      phone: row.employee.phone_wa,
+      contract: row.employee.contract_type,
+      joinDate: row.employee.join_date,
+      roleId: row.job_role_id,
+      roleName: row.job_role?.name ?? "-",
+    });
+  }
+  return roster.sort((a, b) => a.nik.localeCompare(b.nik));
+}
+
+/** Absensi karyawan tertentu dalam rentang tanggal. */
+export async function getAttendance(employeeIds: string[], from: string, to: string = from): Promise<AttendanceEntry[]> {
+  if (employeeIds.length === 0) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("attendance_daily")
+    .select("employee_id, attendance_date, status, note, updated_at")
+    .in("employee_id", employeeIds)
+    .gte("attendance_date", from)
+    .lte("attendance_date", to);
+  if (error) throw new Error(`Gagal memuat absensi: ${error.message}`);
+  return ((data ?? []) as AttendanceRow[]).map((r) => ({
+    employeeId: r.employee_id,
+    date: r.attendance_date,
+    status: r.status,
+    note: r.note,
+    updatedAt: r.updated_at,
+  }));
+}
+
+/** Hitung hadir/sakit/tidak hadir + persentase (hadir ÷ hari tercatat). */
+export function summarize(entries: { status: AttendanceStatus }[]) {
+  const hadir = entries.filter((e) => e.status === "hadir").length;
+  const sakit = entries.filter((e) => e.status === "sakit").length;
+  const tidakHadir = entries.filter((e) => e.status === "tidak_hadir").length;
+  const total = entries.length;
+  return { hadir, sakit, tidakHadir, total, percent: total ? Math.round((hadir / total) * 1000) / 10 : null };
+}

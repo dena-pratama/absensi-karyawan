@@ -1,0 +1,385 @@
+# Development Log — Absensi Karyawan
+
+Catatan setiap aktivitas develop, pengembangan, dan keputusan project.
+Format: entri terbaru di paling atas.
+
+---
+
+## 2026-10-20 — QC kode & database (v0.2) + repo GitHub
+
+**Kode**
+- `tsc`, `eslint`, dan `next build` bersih. Tidak ada `any`, `@ts-ignore`, atau `console.log` sisa. Dua `eslint-disable` yang ada sudah punya alasan.
+- Dihapus karena tidak terpakai:
+  - `statusLabel` (`lib/data/report.ts`) beserta import-nya.
+  - 17 token warna `@theme` yang tidak dipakai di mana pun (`surface-sidebar`, `surface-hover`, `surface`, `surface-variant`, `surface-container-lowest/low/highest`, `border-dark/subtle/active`, `primary-fixed`, `error-container`, `status-*-bg`, `status-sick`, `status-absent`), plus `--spacing-gutter` dan `--text-headline-lg`.
+- Kunci tema dipindah ke `lib/theme.ts` (`THEME_STORAGE_KEY`), dipakai skrip inline di layout dan `ThemeToggle`. Sebelumnya skrip inline menulis `"theme"` secara hardcode.
+
+**Database**
+- Semua tabel dipakai app: `job_role`, `cluster`, `employee`, `branch`, `employee_assignment`, `attendance_daily`, `audit_log`, `ai_connector`. Relasi FK sudah lengkap.
+- Temuan:
+  - View `v_rekap_bulanan` tidak dipakai; rekap dihitung di `lib/data/rekap.ts`.
+  - 4 kolom FK belum punya index: `employee_assignment.job_role_id`, `attendance_daily.job_role_id`, `branch.cluster_id`, `branch.pic_employee_id`.
+- Perbaikan ada di migrasi baru `supabase/migrations/20261020020000_qc_cleanup.sql`, yang **belum dijalankan** (dijalankan admin di SQL Editor). Isinya hanya menambah index dan menghapus view yang tidak terpakai; tidak ada data yang berubah.
+
+**Repo**
+- Project dijadikan repo git dan di-push ke GitHub sebagai repo private `Absensi-Ekspedisi-v0.2`. GitHub tidak mengizinkan spasi di nama repo. `.env.local` tidak ikut ter-commit.
+
+---
+
+## 2026-10-20 — Tab bergaris bawah dirapikan
+
+- Feedback user: tab aktif ("Absensi Harian") di light mode terlihat seperti kotak bercahaya, kurang rapi.
+- Penyebab: `shadow-[0_1px_10px…]` dipasang di seluruh tab (bukan di garisnya), dan `border-b-2` menumpuk di atas garis pemisah nav.
+- Perbaikan: helper `underlineTabClass()` di `components/shell/page-layout.tsx`, dipakai `UnderlineTabs` (Absensi) dan `SettingsTabs` (Pengaturan):
+  - indikator 2px membulat (`::after`) duduk tepat di garis pemisah (`-bottom-px`);
+  - glow tipis hanya di dark mode, tanpa glow di light mode;
+  - tab non-aktif menampilkan garis tipis saat hover.
+- Lanjutan (feedback: tab Pengaturan masih belum clean):
+  - Indikator ternyata terpotong `overflow-x-auto`, jadi melayang di atas garis pemisah.
+  - Garis pemisah kini digambar dengan inset shadow (`underlineTabsNavClass`, dipakai kedua nav), dan indikator di `bottom-0` menimpanya dengan rapi.
+  - Badge jumlah di tab Pengaturan dibuat pill lembut tanpa border: aktif `cyan/15 + brand-ink`, lainnya `panel-raised`.
+- Verifikasi: `tsc` + `eslint` lolos; tiruan tab dengan kelas yang sama dirender di Browser pane (light & dark) dan terlihat bersih. Halaman asli belum dicek karena butuh login.
+
+---
+
+## 2026-10-20 — Light Mode
+
+**Perilaku**
+- Tombol tema (ikon matahari/bulan) di **topbar** (semua halaman app, termasuk skeleton topbar) dan di header **login**.
+- Default tetap **gelap** ("Cyber Operations Dark"); pilihan disimpan di `localStorage` (`theme`).
+- Skrip inline di `<head>` root layout menerapkan tema sebelum paint pertama (tanpa kedip, tanpa hydration error), sesuai panduan Next `preventing-flash-before-hydration`. Halaman tetap Partial Prerender (tidak membaca cookie di layout).
+
+**Implementasi**
+- `src/app/theme.css` (baru): blok `[data-theme="light"]` menimpa token; blok `[data-theme="light"] [data-theme="dark"]` mengembalikan nilai gelap untuk elemen yang harus tetap gelap.
+- Token tema baru di `globals.css`: `shell`, `panel`, `panel-raised`, `panel-inset`, `line`, `line-strong`, `ink` (teks judul), `brand` (cyan tetap), `brand-ink` (teks cyan, lebih gelap di light), `scrim`.
+- ±50 warna hex hardcoded di komponen diganti token tersebut (kelompok berdasarkan tingkat kecerahan; di dark mode selisihnya ≤ 2–3 nilai hex, tidak terlihat). `text-white` → `text-ink`.
+- Skala warna Tailwind (gray, slate, cyan, sky, emerald, amber, rose, red, pink, purple, indigo, teal, orange) **dibalik** di light mode (50↔950 … 400↔600, 500 tetap), jadi kelas seperti `text-gray-400`, `text-emerald-300`, `bg-rose-950/30` otomatis kontras di latar terang.
+- Kartu cabang berwarna di Dashboard diberi `data-theme="dark"` supaya tampil sama di kedua tema.
+- Varian Tailwind `light:` (`@custom-variant`) untuk ikon toggle. Ikon dibungkus `<span>` karena CSS Google Fonts menetapkan `display` pada `.material-symbols-outlined` sehingga `hidden` kalah.
+- Knob switch di Pengaturan diberi `shadow-sm` agar terlihat di track terang.
+
+**Verifikasi**
+- `tsc`, `eslint`, `next build` lolos.
+- Halaman login dicek di Browser pane: gelap → terang berhasil, tema bertahan setelah reload, ikon berganti.
+- ⚠️ Halaman setelah login (Dashboard, Absensi, Laporan, Pengaturan, Smart AI) belum dicek visual di light mode karena pane tidak punya sesi login.
+
+---
+
+## 2026-10-20 — Smart AI Analytics (floating chat) + Konektor AI
+
+**Keputusan user**
+- Multi-provider: **Claude (Anthropic), OpenAI, Google Gemini**.
+- "MCP konektor" = **form koneksi model** di Pengaturan (bukan server MCP).
+- API key disimpan **terenkripsi di tabel DB**.
+- AI boleh **baca + ubah absensi**, tetapi setiap perubahan **wajib disetujui admin** dulu.
+
+**Database** — migrasi baru `supabase/migrations/20261020010000_ai_connector.sql` (⚠️ perlu dijalankan user):
+- Tabel `ai_connector` (provider unik, model, `api_key_ciphertext`, `api_key_last4`, `is_active` — maks 1 aktif, RLS authenticated).
+
+**Keamanan**
+- `AI_ENCRYPTION_KEY` (32 byte acak) ditambahkan otomatis ke `.env.local`; contoh di `.env.example`. **Jangan diganti** setelah ada key tersimpan (key lama tidak bisa didekripsi).
+- API key dienkripsi AES-256-GCM di server (`lib/ai/crypto.ts`), tidak pernah dikirim ke browser (UI hanya melihat ••••4 digit terakhir).
+- Usulan perubahan dari AI ditandatangani HMAC-SHA256 + kedaluwarsa 30 menit; server menolak token yang diubah.
+
+**Pengaturan > Konektor AI** (`/pengaturan/ai`, tab baru)
+- Kartu 3 provider (Aktif / Tersimpan / Belum diatur), form API key (kosong = pakai key tersimpan) + model (datalist dari hasil tes), tombol Tes Koneksi (memuat daftar model resmi provider), Simpan, Simpan & Aktifkan, Nonaktifkan, Hapus.
+- Banner peringatan kalau tabel belum dimigrasi / `AI_ENCRYPTION_KEY` kosong.
+- Default model Claude: `claude-opus-5-5`; OpenAI/Gemini: dipilih dari daftar model hasil tes.
+
+**Engine AI** (`lib/ai/engine.ts`) — satu tool loop (maks 8 langkah) dengan SDK resmi tiap provider:
+- `@anthropic-ai/sdk` 0.131.0 (Messages API + tool use, menangani `refusal` & `pause_turn`), `openai` 7.28.0 (Chat Completions + function tools), `@google/genai` 2.27.0 (generateContent + functionDeclarations).
+- Error provider diterjemahkan (401/403 key ditolak, 404 model, 429 kuota, 5xx).
+
+**Tools AI** (`lib/ai/tools.ts`) — memakai data layer yang sama dengan halaman:
+- Baca: `daftar_cabang`, `ringkasan_kehadiran_harian`, `cari_absensi` (rentang tanggal, cabang, NIK, status; maks 150 baris detail), `daftar_karyawan`.
+- Tulis (via approval): `usulkan_perubahan_absensi` → kartu usulan; disimpan hanya lewat `approveProposal()` yang memanggil `saveAttendance` (validasi roster & tanggal yang sama dengan Absensi Harian).
+
+**Floating chat** (`components/ai/smart-ai-chat.tsx`, dipasang di layout `(app)` → muncul di semua halaman)
+- Tombol "Smart AI" kanan bawah, panel 440px (layar penuh di mobile), saran pertanyaan, jawaban markdown (tabel via `react-markdown` + `remark-gfm`), indikator "Menganalisis…".
+- Kartu usulan: tabel karyawan *sebelum → sesudah* + keterangan, tombol **Tolak** / **Setujui & Simpan**; status usulan ikut dikirim ke AI di pesan berikutnya.
+- Riwayat chat disimpan di `sessionStorage` (hilang saat tab ditutup), maks 20 giliran dikirim ke AI.
+
+**Verifikasi**
+- `npm run lint` ✅, `tsc` ✅, `npm run build` ✅.
+- Uji unit enkripsi & tanda tangan (roundtrip, ciphertext tidak memuat key, token diubah ditolak, ciphertext diubah terdeteksi) ✅.
+- ⏳ Belum dites ke provider sungguhan (butuh API key user, biaya ditagih ke akun user) dan belum dicek di browser dengan sesi login.
+
+---
+
+## 2026-10-20 — Fix: error "new Date() while prerendering" di /laporan
+
+- Penyebab: `parseReportFilters()` memanggil `todayWIB()` (`new Date()`) untuk default tanggal **sebelum** ada query Supabase. Dengan Cache Components + Partial Prefetching, kode sebelum data request-time ikut di-prerender, dan `new Date()` di situ dilarang.
+- Halaman lain tidak kena karena `createClient()` sudah memanggil `await connection()` sebelum `todayWIB()` dipakai.
+- Perbaikan: `await connection()` di awal `Content` halaman `/laporan` (setelah `await searchParams`).
+- Aturan untuk halaman berikutnya: **jangan panggil `todayWIB()`/`new Date()` sebelum query Supabase atau `await connection()`.**
+- `npm run lint` ✅, `npm run build` ✅.
+
+---
+
+## 2026-10-20 — Halaman Laporan Absensi (CSV & PDF)
+
+**Navigasi**: ikon baru **Laporan Absensi** di sidebar, tepat di bawah menu Absensi & Karyawan → `/laporan`.
+
+**Filter** (`?cabang=&karyawan=&dari=&sampai=&status=`)
+- Cabang (semua / satu cabang; = cabang tempat absensi dicatat), Karyawan (semua / satu; daftar mengikuti cabang penempatan saat ini), Dari–Sampai tanggal (default awal bulan s/d hari ini, maks 366 hari, tidak bisa melewati hari ini, otomatis ditukar bila terbalik), Status (opsional).
+- Logika filter bersama halaman & export: `lib/report-filters.ts`. Data: `lib/data/report.ts` (paginasi 1.000 baris/request supaya data besar tidak terpotong).
+
+**Pratinjau di halaman**: 5 kartu ringkasan (karyawan, total data, hadir/sakit/tidak hadir + %), tabel Rekap per Karyawan, tabel Detail Harian (50 baris pertama).
+
+**Export**
+- `GET /laporan/export/csv?…&jenis=detail` — satu baris per absensi (tanggal, cabang, NIK, nama, jabatan, status, keterangan).
+- `GET /laporan/export/csv?…&jenis=rekap` — satu baris per karyawan (H, S, TH, total, % hadir).
+- `GET /laporan/export/pdf?…` — `@react-pdf/renderer` 4.9.0, A4 landscape, palet cetak (putih + aksen cyan gelap): header + kotak meta (cabang, karyawan, status, waktu cetak), 5 kartu ringkasan, tabel rekap per karyawan (zebra), detail harian **dikelompokkan per tanggal** (subjudul + jumlah H/S/TH per hari, badge status berwarna), footer di tiap halaman ("Halaman X dari Y").
+- CSV memakai UTF-8 BOM. Nama file: `laporan-absensi_<kode-cabang|semua-cabang>_<dari>_<sampai>[_jenis].csv|pdf`.
+
+**Verifikasi**
+- `npm run lint` ✅, `tsc` ✅, `npm run build` ✅.
+- PDF contoh dirender di luar app dengan data dummy (8 karyawan × 12 hari, 6 halaman) dan diperiksa visual via pdf.js ✅. (File sementara di `public/` dan pengecualian `.pdf` di proxy sudah dihapus lagi.)
+- ⏳ Halaman `/laporan` & unduhan dari app belum dites dengan sesi login (pane browser kehilangan sesi; data absensi di Supabase juga masih kosong).
+
+---
+
+## 2026-10-20 — Menu Pengaturan: Karyawan, Cabang, Jabatan
+
+Acuan: `pengaturan_karyawan_cabang_dan_role`, `pengaturan_manajemen_cabang_hub`, `pengaturan_master_role_hak_akses`, `modal_floating_tambah_*`.
+
+**Keputusan user**
+- Status cabang: **toggle Aktif/Nonaktif saja** (status `maintenance` lama tetap dipertahankan selama cabang tetap aktif).
+- **Simpan sekaligus**: perubahan ditampung sebagai draf (badge "Baru"/"Diubah"), lalu disimpan lewat bar bawah **Terapkan Pengaturan** / **Reset Perubahan**. Ada konfirmasi saat pindah tab atau tutup halaman bila masih ada draf.
+- **Mutasi = riwayat**: ganti cabang/jabatan menutup penempatan lama (`valid_to` = kemarin) dan membuat penempatan baru mulai hari ini. Penempatan yang dibuat hari ini cukup diperbarui.
+- Master Role → **daftar jabatan** (tanpa matriks RBAC).
+
+**Halaman**
+- Header bersama + 3 tab dengan badge jumlah: Manajemen Karyawan `/pengaturan` · Manajemen Cabang / Hub `/pengaturan/cabang` · Master Jabatan `/pengaturan/jabatan`.
+- **Karyawan**: 3 stat card (staf, cabang, jabatan), filter cari/status/hub, tabel (NIK/nama/jabatan, cabang penempatan, kontrak, No. WA, toggle aktif, edit), pagination 10, panel samping mini-cabang & distribusi jabatan, modal tambah/edit (NIK, nama, jabatan, cabang, WA +62, tgl bergabung, kontrak, aktif).
+- **Cabang**: filter cari/tipe/wilayah/status, Ekspor CSV, tabel (kode & nama, tipe & alamat, PIC + jabatan, jumlah staf, jam gate, toggle, edit), **Log Perubahan Terkini** dari `audit_log`, modal (kode, nama, tipe, cluster, PIC dari karyawan aktif, preset jam gate / jam sendiri, alamat, aktif).
+- **Jabatan**: 3 stat card (jabatan aktif, staf terpetakan, jabatan terbanyak), tabel (kode, nama, bar jumlah staf, toggle, edit), modal tambah/edit.
+- Server action: `lib/actions/settings.ts` (`applyEmployeeChanges`, `applyBranchChanges`, `applyRoleChanges`) dengan validasi + pesan error ramah (duplikat NIK/kode, format).
+- Data: `lib/data/settings.ts`. Komponen: `pengaturan/_components/` (staged hook, modal, toggle, apply bar, tabs).
+
+**Dikecualikan dari desain (bertentangan scope)**
+- Tab "Pengaturan Presensi & Shift", kartu "Kebijakan Shift & SLA", panel parameter presensi & biometrik.
+- Zona & Divisi, toggle Alert WA, Staf/Shift, radius geofence/GPS, matriks RBAC, insentif, Sync Cloud, Ekspor Skema, badge "Master Admin".
+
+**Penyesuaian lain**
+- "+ Tambah Entitas Baru" (modal dengan switch Karyawan/Cabang) → tombol kontekstual per halaman ("Tambah Karyawan" / "Tambah Cabang" / "Tambah Jabatan"), karena draf simpan-sekaligus per halaman.
+- Kolom "Zona & Divisi" diganti **Cabang Penempatan**. Judul "& Manajemen Hak Akses" → "& Master Data". "Ekspor" cabang = CSV.
+- `ComingSoon` placeholder dihapus (tidak terpakai).
+
+**Verifikasi**
+- `npm run lint` ✅, `npm run build` ✅.
+- Browser: 3 halaman tampil; uji simpan sekaligus di Jabatan (nonaktifkan Line-Haul → Terapkan → aktifkan lagi → Terapkan) ✅, tercatat di Log Perubahan ✅; modal tambah cabang/karyawan terbuka & tertutup (tanpa simpan) ✅.
+- ⏳ Tambah/edit karyawan & cabang ke DB belum dites (data cabang/karyawan di Supabase masih kosong).
+
+---
+
+## 2026-10-20 — Menu Absensi: Absensi Harian, Rekap Bulanan, Daftar Karyawan
+
+Acuan: `form_update_absensi_harian/absensiharian.html`, `rekap_bulanan_hub_matriks_kalender/rekapbulanan.html`. Shell tetap mengikuti Dashboard.
+
+**Navigasi**
+- Sidebar: Dashboard → **Absensi & Karyawan** (satu ikon, di bawah Home) → Pengaturan → Keluar. Ikon "Daftar Karyawan" terpisah dihapus.
+- 3 tab bergaris bawah (`UnderlineTabs`) di header: Daftar Karyawan `/absensi/karyawan` · Absensi Harian `/absensi` · Rekap Bulanan `/absensi/rekap`.
+- Pencarian topbar → `/absensi/karyawan?q=`. Placeholder `/karyawan` dihapus.
+- Sidebar dibungkus `<Suspense>` (wajib untuk `usePathname()` di rute dinamis).
+
+**Absensi Harian** (`/absensi?tanggal=YYYY-MM-DD`)
+- Ceklis per cabang aktif & tanggal: radio Hadir / Sakit / Tidak Hadir + keterangan singkat (input, maks 200).
+- Chip ringkasan (Total/Hadir/Sakit/Tidak Hadir/Belum diisi), cari nama/NIK/role, filter role (dari tabel `job_role`), pilih tanggal (tidak bisa tanggal mendatang).
+- Tombol Batal/Reset, Tandai Semua Hadir (baris yang terlihat), **Update Absen** → server action `saveAttendance` (hanya baris yang berubah; snapshot cabang & jabatan dari penempatan; `created_by` untuk baris baru, `updated_by` selalu).
+- Peringatan saat pindah tanggal / tutup tab bila ada perubahan belum disimpan. Toast hasil simpan.
+- Roster = penempatan yang berlaku pada tanggal itu (`valid_from ≤ tgl ≤ valid_to`).
+
+**Rekap Bulanan** (`/absensi/rekap?bulan=YYYY-MM&role=`)
+- Matriks tanggal 1–31: sel H / S / TH, "-" = belum diisi, "•" = hari mendatang; hari ini disorot cyan, Sabtu/Minggu diberi tint (tetap dihitung bila diisi).
+- Kolom total H, S, TH, %; navigasi bulan (tidak bisa melewati bulan berjalan); kolom No/NIK/Nama sticky.
+- **Export CSV** (`/absensi/rekap/export`, UTF-8 BOM agar terbaca Excel).
+
+**Daftar Karyawan** (`/absensi/karyawan`) — sesuai permintaan user: summary card + detail + chart
+- 4 summary card: Total staf (per kontrak), Hadir hari ini, Sakit/Tidak hadir hari ini, Rata-rata kehadiran bulan ini.
+- Tabel: NIK, nama & jabatan, No. HP, status kontrak, % kehadiran bulan ini (bar), status hari ini, tombol Detail.
+- **Detail** `/absensi/karyawan/[id]`: profil (cabang, kontrak, tgl bergabung), stat tile bulan ini (+ selisih vs bulan lalu), **chart kolom % kehadiran 6 bulan** (tooltip hover/fokus, tabel sr-only), bar komposisi Hadir/Sakit/TH, kalender bulan ini (kode status per hari), riwayat 8 absensi terakhir.
+
+**Penyesuaian vs desain (scope)**
+- Status Izin (I), Alfa (A), Off (L) → hanya **Hadir / Sakit / Tidak Hadir**; "Off" diganti "Belum diisi".
+- Dihapus: "Kalkulasi Uang Makan & Insentif", badge "Contoh", foto profil (pakai inisial), "Otomatis tersinkronisasi ke Cloud Hub" (diganti status simpan nyata), divisi/zona, filter shift.
+- Export Excel → CSV.
+- % kehadiran bulanan = hadir ÷ hari yang sudah diisi (sama dengan view `v_rekap_bulanan`).
+
+**Lainnya**
+- `lib/supabase/server.ts`: `await connection()` setelah `cookies()` — memperbaiki error dev "Date.now() while prerendering" (Partial Prefetching ikut merender data sesi).
+- Data layer baru: `lib/data/attendance.ts`, `rekap.ts`, `employee.ts`; helper bulan/tanggal di `lib/format.ts`.
+
+**Verifikasi**
+- `npm run lint` ✅, `npm run build` ✅.
+- Browser (admin login di pane): 3 tab & sidebar tampil, state kosong tanpa error ✅.
+- ⏳ Dengan data belum dites: query cabang mengembalikan 0 baris → `seed_demo.sql` tampaknya belum masuk.
+
+---
+
+## 2026-10-20 — App shell (topbar + sidebar) & halaman Dashboard
+
+Acuan: `dashboard_absensi_cabang_outlet/dashboard.html`. Supabase sudah terhubung (`.env.local` diisi user); dicek via REST: tabel skema baru ada, `shift` tidak ada, RLS menutup akses anonim.
+
+**App shell — acuan navigasi semua halaman berikutnya**
+- `src/app/(app)/layout.tsx`: container rounded 36px + glow magenta/cyan/ungu, grid:
+  - desktop: topbar (span 2) / page header (span 2) / sidebar 64px | konten
+  - mobile: topbar / sidebar horizontal / page header / konten
+- `components/shell/topbar.tsx`: brand "Absensi Ekspedisi | Data Hub", **pilihan cabang aktif** (cookie `active_branch`, dipakai semua halaman), pencarian staf (→ `/karyawan?q=`), profil admin (nama dari user_metadata/email + menu Keluar).
+- `components/shell/sidebar.tsx`: Dashboard `/`, Absensi `/absensi`, Daftar Karyawan `/karyawan`, Pengaturan `/pengaturan`, Keluar. Ikon heroicons dari desain, state aktif cyan + titik.
+- `components/shell/page-layout.tsx`: `PageHeader` (breadcrumb + judul + aksi), `PageTabs`, `PageBody`. **Setiap halaman baru wajib memakai ini.**
+- `/absensi`, `/karyawan`, `/pengaturan` sementara "sedang dibangun" (`ComingSoon`) agar navigasi tidak 404. `(app)/error.tsx` untuk error data.
+
+**Dashboard** (`src/app/(app)/page.tsx`, data: `lib/data/dashboard.ts`)
+- Data Cabang: kartu gradien ungu/teal/magenta bergantian, carousel 3 kartu + tombol next; subjudul = tipe cabang; "Kehadiran: X% Hadir (h/total Staf)"; avatar inisial + "+N"; "Lihat Detail" = jadikan cabang aktif.
+- Persentase Kehadiran Cabang (hari ini): rata-rata global + bar per cabang.
+  - % = hadir ÷ jumlah staf aktif yang ditempatkan (yang belum diabsen dihitung tidak hadir).
+  - Warna/badge: ≥95% cyan "Optimal", 85–94% amber "Perlu Perhatian", <85% rose "Kritis".
+- Absensi Outlet Terkini: 6 staf cabang aktif (yang terakhir diabsen di atas), pill Hadir / Sakit / Tidak Hadir / **Belum Diabsen**, tombol Edit & "Lihat semua" → `/absensi`.
+- Empty state & skeleton loading.
+
+**Penyesuaian vs desain (scope)**
+- Dihilangkan: tab "Monitoring SLA / KPI", ikon Notifikasi, toggle tema, ikon "Catatan & Laporan", pencarian resi.
+- "Shift Pagi (Last-Mile & Sortir)" → tanggal hari ini; "Terakhir sync" → jam update absensi terakhir; jam check-in di pill status & status gabungan ("Hadir & Pickup") dihilangkan.
+- "On-Duty" → "Hadir". "Real-Time" → "Hari Ini".
+- Font: desain menyebut Plus Jakarta Sans tapi tidak dimuat; tetap **Inter** sesuai DESIGN.md.
+
+**Data demo**: `supabase/seed_demo.sql` (opsional) — 6 cabang, 22 karyawan, absensi hari ini.
+
+**Verifikasi**
+- `npm run lint` ✅, `npm run build` ✅ (rute `/`, `/absensi`, `/karyawan`, `/pengaturan` = partial prerender).
+- ⏳ Tampilan dashboard dengan sesi login belum dicek di browser (perlu admin login).
+
+---
+
+## 2026-10-20 — Scaffold project + halaman Login
+
+**Scaffold**
+- `create-next-app` → Next.js **16.4.2**, React 19.3, TypeScript, Tailwind CSS 4, ESLint, `src/` dir, App Router.
+  - Default template: Cache Components + Partial Prefetching aktif.
+  - Next 16: middleware sekarang bernama **`src/proxy.ts`**.
+- Dependensi: `@supabase/ssr` 0.12.7, `@supabase/supabase-js` 2.118.0, `server-only`.
+- `next.config.ts`: `turbopack.root` di-set ke folder project (ada package-lock.json nyasar di `C:\Users\prata`).
+- `.env.example` (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`); `.gitignore` mengizinkan file ini.
+- `.claude/launch.json` untuk dev server (port 3000). README diganti panduan setup.
+
+**Design system** (`src/app/globals.css`)
+- Token DESIGN.md dipindah ke `@theme` Tailwind 4: warna (surface, primary, status), spacing (`space-*`, `gutter`, `margin`), ukuran teks (`headline-*`, `body-*`, `label-*`, `caption`).
+- Font Inter via `next/font`; ikon Material Symbols via Google Fonts (`display=block`). Komponen `src/components/icon.tsx`.
+
+**Auth Supabase**
+- `src/lib/supabase/server.ts`: client untuk server component / action.
+- `src/lib/supabase/proxy.ts` + `src/proxy.ts`: refresh sesi tiap request; belum login → `/login`; sudah login & buka `/login` → `/`.
+- "Ingat sesi perangkat": kalau tidak dicentang, cookie auth jadi session cookie (hilang saat browser ditutup).
+
+**Halaman Login** (`src/app/login/`)
+- Tampilan mengikuti `login_page` (header, card, glow, Sync Status, toggle lihat sandi, checkbox ingat sesi, CTA cyan, toast).
+- Server action `login` (`signInWithPassword`) dengan pesan error Bahasa Indonesia, plus `logout`.
+- Penyesuaian vs desain:
+  - Field **Username → Email** (Supabase Auth pakai email).
+  - **Dihilangkan** (tidak berfungsi / di luar scope): badge "Server Cloud Gateway Online • Latency 14ms", ID/EN, Support, "Lupa Password?", toast OTP WhatsApp.
+- `/` sementara berupa placeholder "Login berhasil" + tombol Keluar, sampai Dashboard dibuat.
+
+**Verifikasi**
+- `npm run lint` ✅, `tsc --noEmit` ✅, `npm run build` ✅.
+- Browser: `/` redirect ke `/login` ✅; tampilan desktop & mobile (375px, tanpa scroll horizontal) ✅; submit tanpa Supabase → toast error ✅.
+- ⚠️ Login sungguhan **belum dites**: belum ada project Supabase / `.env.local`.
+
+---
+
+## 2026-10-20 — Skema DB versi sederhana
+
+File: `supabase/migrations/20261020000000_init_schema.sql` (belum dijalankan di Supabase).
+
+**Keputusan user**
+- Semua yang bertentangan dengan scope (poin A) **dikecualikan, tidak dibuat**.
+- Divisi & Zona Operasi → **dihapus dari UI** (tidak ada kolom di DB).
+- PIC cabang → **pilih dari karyawan** (FK `pic_employee_id`; form UI jadi dropdown).
+- Tipe cabang → **gabungan**: hub_utama, transit_center, sub_hub, drop_point, dc_sorting, gateway, sub_agent.
+- Info cabang → **alamat saja** (deskripsi & kota di UI dihapus).
+
+**Tabel yang dipakai**
+- `job_role` (jabatan, tanpa insentif), `cluster`, `employee`, `branch`, `employee_assignment` (riwayat penempatan, tanpa shift), `attendance_daily` (status `hadir/sakit/tidak_hadir` + note), `audit_log` (diisi trigger otomatis untuk job_role/employee/branch).
+- View `v_rekap_bulanan`: hadir, sakit, tidak_hadir, total_hari, persen_hadir.
+- RLS: semua user `authenticated` akses penuh (hanya 1 akun admin); `audit_log` read-only.
+
+**Dihapus dari skema awal**
+- `shift`, `attendance_setting`, `holiday`, `app_permission`, `role_permission`, `attendance_change_log`, `attendance_document`, `attendance_period`.
+- Kolom: `employee.email/auth_user_id/biometric_id/wa_alert_enabled`, `branch.shift_capacity/geofence_*`, `job_role.daily_incentive/is_field_role`, `attendance_daily.shift_id/check_in_at/check_out_at/is_late/late_minutes/source/incentive_amount/is_locked/locked_at`.
+- `created_by/updated_by/changed_by` sekarang merujuk ke `auth.users` (admin), bukan `employee`.
+
+**Penyesuaian UI yang mengikuti**
+- Halaman Master Role → daftar jabatan saja (tanpa matriks RBAC).
+- Login → email + password (tanpa OTP WA). Rekap bulanan → kolom H / S / TH / %.
+- Disembunyikan: filter & info shift, toleransi telat, biometrik, geofence, Staf/Shift, tab SLA/KPI, kalkulasi insentif, menu Catatan & Laporan, notifikasi.
+
+**Catatan setup**
+- Matikan "Allow new users to sign up" di Supabase Auth; buat 1 user admin manual.
+
+---
+
+## 2026-10-20 — Analisis kecocokan UI ↔ Skema DB
+
+Semua 10 halaman desain sudah dibaca dan dibandingkan dengan skema SQL dari user.
+`login_page/DESIGN.md` dan `my_design_system/DESIGN.md` isinya identik.
+
+**A. Skema & UI bertentangan dengan scope yang disepakati**
+1. Status: form harian 3 (`hadir/sakit/tidak_hadir`); rekap bulanan 5 (H/S/I/A/Off); DB 6 (`hadir,sakit,izin,cuti,alfa,libur`). Scope = 3.
+2. Login: scope 1 admin; DB punya `employee.email/auth_user_id` + RBAC; UI login pakai field `Username` (name=nik) + teks OTP WhatsApp.
+3. Halaman "Master Role & Hak Akses" (matriks RBAC) + tabel `app_permission/role_permission`, padahal role = jabatan saja.
+4. Shift, telat, check-in/out, toleransi, cut-off, biometrik, geofence ada di UI & DB, padahal scope tanpa shift/aturan.
+5. Dokumen + approval, closing periode, kalkulasi insentif/uang makan: ada di DB/UI, di luar scope.
+
+**B. Ada di UI, tidak ada di DB**
+- Karyawan: "Divisi & Zona Operasi", status "Cuti/Sakit/Off Shift" (DB cuma `is_active`), sub-label role ("Sprinter Zone A").
+- Cabang: PIC berupa teks bebas + no HP (DB: FK `pic_employee_id`), deskripsi/subjudul, kota/lokasi, tipe `gateway`/`sub_agent`/`outlet`.
+- Dashboard: status gabungan ("Hadir & Pickup/In-Transit"), tab Monitoring SLA/KPI, cari resi.
+- Rekap: tombol "Kalkulasi Uang Makan" (tidak ada kolom uang makan).
+- Nav "Catatan & Laporan" & Notifikasi: tidak ada desain halaman maupun tabel.
+
+**C. Ada di DB, tidak ada di UI**
+- `biometric_id`, `join_date`, `holiday`, `attendance_period`, `attendance_change_log`, `attendance_document`, `incentive_amount`, `employee.email`.
+
+**Status**
+- ⏳ Menunggu keputusan user (sederhanakan skema atau tidak)
+
+---
+
+## 2026-10-20 — Inisialisasi & kesepakatan scope
+
+**Tech stack**
+- Frontend: Next.js (App Router, TypeScript, Tailwind CSS)
+- Backend: Supabase (Auth, Postgres)
+
+**Keputusan scope**
+- Hanya **1 pengguna (admin/pengelola)** yang login. Karyawan tidak punya akun.
+- Absensi dilakukan dengan **checklist harian** oleh admin, tanpa selfie, GPS, QR, shift, atau jam masuk/terlambat.
+- Status absensi ada **3**: **Hadir**, **Sakit**, **Absen** (mengikuti desain).
+- **"Role" = jabatan karyawan** (contoh: SPV, Sprinter, Warehouse), hanya label dan **bukan** role untuk login/hak akses.
+
+**Aturan kerja**
+- UI mengikuti desain dari user; skema DB mengikuti skema dari user.
+- Kalau ada ketidaksesuaian antara UI dan DB → **konfirmasi ke user dulu** sebelum diputuskan.
+- Setiap aktivitas develop dicatat di file ini.
+
+**Design reference**
+- Moodboard default: `DESIGN.md` → tema "Cyber Operations Dark"
+  - Base `#0b0c10` / `#12141b`, aksen cyan `#00d2ff`
+  - Status: Hadir `#10b981`, Sakit `#f59e0b`, Absen `#f43f5e`
+  - Font Inter, app shell maks. 1240px, sidebar 72px
+- Halaman desain (sumber: `Downloads/minimalist_attendance_web_app`):
+  - login_page
+  - dashboard_absensi_cabang_outlet
+  - form_update_absensi_harian
+  - rekap_bulanan_hub_matriks_kalender
+  - daftar_karyawan_hub
+  - pengaturan_karyawan_cabang_dan_role
+  - pengaturan_manajemen_cabang_hub
+  - pengaturan_master_role_hak_akses
+  - modal_floating_tambah_cabang
+  - modal_floating_tambah_entitas_karyawan_cabang
+
+**Status**
+- ⏳ Menunggu skema database dari user
+- ⏳ Analisis kecocokan UI ↔ DB belum dilakukan
+- ⏳ Belum ada kode
