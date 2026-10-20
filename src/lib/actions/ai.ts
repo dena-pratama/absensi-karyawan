@@ -7,6 +7,7 @@ import { AiError, runAgent, type ChatTurn } from "@/lib/ai/engine";
 import type { AttendanceProposal, SignedProposal } from "@/lib/ai/proposal";
 import { AI_TOOLS, createToolExecutor } from "@/lib/ai/tools";
 import { AI_PROVIDERS } from "@/lib/ai/providers";
+import { READ_ONLY_ERROR, isAdmin } from "@/lib/data/access";
 import { getShellData } from "@/lib/data/shell";
 import { todayWIB } from "@/lib/format";
 
@@ -38,6 +39,7 @@ Cara kerja:
 }
 
 export async function askAssistant(history: ChatTurn[], message: string): Promise<AskResult> {
+  if (!(await isAdmin())) return { ok: false, error: READ_ONLY_ERROR };
   const text = message.trim().slice(0, MAX_CHARS);
   if (!text) return { ok: false, error: "Pertanyaan kosong." };
   if (!isAiKeyConfigured()) return { ok: false, error: "AI_ENCRYPTION_KEY belum diatur di server." };
@@ -83,6 +85,7 @@ export type ApproveResult = { ok: true; saved: number } | { ok: false; error: st
 
 /** Jalankan usulan AI setelah admin menekan "Setujui". Token diverifikasi HMAC + masa berlaku. */
 export async function approveProposal(token: string): Promise<ApproveResult> {
+  if (!(await isAdmin())) return { ok: false, error: READ_ONLY_ERROR };
   const proposal = verifyPayload<AttendanceProposal>(token);
   if (!proposal) return { ok: false, error: "Usulan tidak valid atau sudah diubah." };
   if (Date.now() > proposal.expiresAt) return { ok: false, error: "Usulan sudah kedaluwarsa (30 menit). Minta AI membuat usulan baru." };

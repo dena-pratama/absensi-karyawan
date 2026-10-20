@@ -19,7 +19,7 @@ export function SettingsHeader({ tab }: { tab: SettingsTab }) {
       below={
         <>
           <p className="text-xs text-gray-400 mt-1">
-            Kelola data karyawan &amp; penempatan, cabang / hub, dan master jabatan. Perubahan disimpan saat klik
+            Kelola data karyawan &amp; penempatan, cabang / hub, master jabatan, dan hak akses pengguna. Perubahan disimpan saat klik
             &quot;Terapkan Pengaturan&quot;.
           </p>
           <Suspense fallback={<SettingsTabs active={tab} counts={null} />}>

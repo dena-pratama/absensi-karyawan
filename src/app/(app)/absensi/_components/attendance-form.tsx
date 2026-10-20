@@ -52,6 +52,7 @@ export function AttendanceForm({
   rows,
   roles,
   lastUpdate,
+  readOnly = false,
 }: {
   branchId: string;
   branchCode: string;
@@ -60,6 +61,8 @@ export function AttendanceForm({
   rows: FormRow[];
   roles: { id: string; name: string }[];
   lastUpdate: string | null;
+  /** Akun SPV / karyawan: hanya melihat, tanpa ceklis & simpan. */
+  readOnly?: boolean;
 }) {
   const router = useRouter();
   const initial = useMemo(() => toMap(rows), [rows]);
@@ -318,7 +321,7 @@ export function AttendanceForm({
                           name={`absen_${r.employeeId}`}
                           value={c.status}
                           checked={e.status === c.status}
-                          disabled={isFuture}
+                          disabled={isFuture || readOnly}
                           onChange={() => setEntry(r.employeeId, { status: c.status })}
                           className={`w-4 h-4 cursor-pointer ${c.accent}`}
                         />
@@ -330,7 +333,7 @@ export function AttendanceForm({
                       type="text"
                       value={e.note}
                       maxLength={200}
-                      disabled={isFuture}
+                      disabled={isFuture || readOnly}
                       onChange={(ev) => setEntry(r.employeeId, { note: ev.target.value })}
                       aria-label={`Keterangan ${r.name}`}
                       placeholder="-"
@@ -372,6 +375,12 @@ export function AttendanceForm({
               ? `Tersimpan untuk ${branchCode} • terakhir update ${lastUpdate}`
               : `Belum ada absensi tersimpan untuk ${branchCode} di tanggal ini`}
         </div>
+        {readOnly ? (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-line bg-panel text-gray-400">
+            <Icon name="visibility" className="text-[16px]" />
+            Mode lihat saja — absensi diisi lewat aplikasi mobile atau oleh admin
+          </span>
+        ) : (
         <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
           <button
             type="button"
@@ -403,6 +412,7 @@ export function AttendanceForm({
             Update Absen
           </button>
         </div>
+        )}
       </div>
 
       {/* Toast */}

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { underlineTabClass, underlineTabsNavClass } from "@/components/shell/page-layout";
 import { unsavedStore } from "./staged";
 
-export type SettingsTab = "karyawan" | "cabang" | "jabatan" | "ai";
+export type SettingsTab = "karyawan" | "cabang" | "jabatan" | "akses" | "ai";
 
 export function SettingsTabs({
   active,
@@ -17,6 +17,7 @@ export function SettingsTabs({
     { key: "karyawan", label: "Manajemen Karyawan", href: "/pengaturan", count: counts?.employees },
     { key: "cabang", label: "Manajemen Cabang / Hub", href: "/pengaturan/cabang", count: counts?.branches },
     { key: "jabatan", label: "Master Jabatan", href: "/pengaturan/jabatan", count: counts?.roles },
+    { key: "akses", label: "Pengguna & Akses", href: "/pengaturan/akses" },
     { key: "ai", label: "Konektor AI", href: "/pengaturan/ai" },
   ];
 

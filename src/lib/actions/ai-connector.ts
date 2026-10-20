@@ -5,6 +5,7 @@ import { getStoredKey } from "@/lib/ai/connector";
 import { encryptSecret, isAiKeyConfigured } from "@/lib/ai/crypto";
 import { AiError, listModels } from "@/lib/ai/engine";
 import { isAiProvider, type AiProvider } from "@/lib/ai/providers";
+import { READ_ONLY_ERROR, isAdmin } from "@/lib/data/access";
 import { createClient } from "@/lib/supabase/server";
 
 export type ConnectorResult = { ok: true; message: string } | { ok: false; error: string };
@@ -18,6 +19,7 @@ async function resolveKey(provider: AiProvider, apiKey: string) {
 
 /** Tes API key (yang diketik, atau yang tersimpan) dengan mengambil daftar model. */
 export async function testConnector(provider: string, apiKey: string): Promise<TestResult> {
+  if (!(await isAdmin())) return { ok: false, error: READ_ONLY_ERROR };
   if (!isAiProvider(provider)) return { ok: false, error: "Provider tidak valid." };
   if (!isAiKeyConfigured()) return { ok: false, error: "AI_ENCRYPTION_KEY belum diatur di server." };
   const key = await resolveKey(provider, apiKey);
@@ -39,6 +41,7 @@ export async function saveConnector(input: {
   apiKey: string;
   activate: boolean;
 }): Promise<ConnectorResult> {
+  if (!(await isAdmin())) return { ok: false, error: READ_ONLY_ERROR };
   const { provider, activate } = input;
   const model = input.model.trim();
   if (!isAiProvider(provider)) return { ok: false, error: "Provider tidak valid." };
@@ -80,6 +83,7 @@ export async function saveConnector(input: {
 }
 
 export async function deactivateConnector(provider: string): Promise<ConnectorResult> {
+  if (!(await isAdmin())) return { ok: false, error: READ_ONLY_ERROR };
   if (!isAiProvider(provider)) return { ok: false, error: "Provider tidak valid." };
   const supabase = await createClient();
   const { error } = await supabase.from("ai_connector").update({ is_active: false }).eq("provider", provider);
@@ -89,6 +93,7 @@ export async function deactivateConnector(provider: string): Promise<ConnectorRe
 }
 
 export async function deleteConnector(provider: string): Promise<ConnectorResult> {
+  if (!(await isAdmin())) return { ok: false, error: READ_ONLY_ERROR };
   if (!isAiProvider(provider)) return { ok: false, error: "Provider tidak valid." };
   const supabase = await createClient();
   const { error } = await supabase.from("ai_connector").delete().eq("provider", provider);

@@ -5,6 +5,93 @@ Format: entri terbaru di paling atas.
 
 ---
 
+## 2026-10-21 — Tambah akun & filter di Pengguna & Akses
+
+- Permintaan user: akun bisa ditambah dari Pengaturan, dan daftar akun diberi filter supaya tidak memanjang ke bawah.
+- **Filter & paginasi**: cari email, filter role (Semua / Admin / SPV / Karyawan / Tanpa Akses), 10 akun per halaman, dan info "Menampilkan x–y dari n".
+- **Tambah Akun** (modal):
+  - field: email, kata sandi awal (min. 8, bisa ditampilkan), role, dan cakupan (cabang untuk SPV, data karyawan untuk karyawan);
+  - akun dibuat langsung aktif (`email_confirm: true`);
+  - tombol nonaktif selama ada perubahan role yang belum diterapkan.
+- Membuat akun Supabase butuh **secret key**: publishable key tidak bisa, dan sign-up publik sengaja dimatikan.
+  - Env baru opsional `SUPABASE_SECRET_KEY`, hanya dibaca di `lib/supabase/admin.ts` (`server-only`, tanpa `NEXT_PUBLIC_`). Key diisi sendiri oleh user di `.env.local` / Vercel.
+  - Tanpa key: tombol nonaktif + petunjuk pengisian.
+- Action `createUserAccount` (`lib/actions/access.ts`):
+  - cek admin (rpc `is_admin`), lalu validasi email / kata sandi / cakupan;
+  - `auth.admin.createUser`, lalu simpan role lewat client admin yang login (RLS + trigger berlaku);
+  - bila menyimpan role gagal, akun auth dihapus lagi;
+  - pesan ramah untuk email yang sudah terdaftar dan kata sandi lemah.
+- `.env.example` & README diperbarui:
+  - scope role, fitur Pengguna & Akses, tabel `app_user`, migrasi #6, dan env `SUPABASE_SECRET_KEY`;
+  - poin keamanan baru;
+  - catatan instalasi baru (migrasi #6 dijalankan setelah akun admin pertama dibuat).
+- Verifikasi: `tsc`, `eslint`, dan `next build` lolos. Pembuatan akun belum dites (butuh secret key & login admin).
+
+---
+
+## 2026-10-21 — Web hanya-lihat untuk SPV & karyawan
+
+- Keputusan user:
+  - karyawan login untuk absen hanya di app HP;
+  - di panel web, akun non-admin hanya bisa **melihat Dashboard & menu Absensi** tanpa mengubah apa pun;
+  - berlaku untuk SPV & karyawan, masing-masing sesuai cakupan RLS-nya.
+- **Proxy** (`lib/supabase/proxy.ts`):
+  - admin → semua halaman;
+  - SPV / karyawan → hanya `/` dan `/absensi/*`, rute lain diarahkan ke `/`;
+  - akun tanpa role → `/akses-ditolak`.
+- **Server action**:
+  - helper `isAdmin()` + `READ_ONLY_ERROR` di `lib/data/access.ts`;
+  - dipasang di semua aksi tulis: `saveAttendance`, `applyEmployee/Branch/RoleChanges`, `test/save/deactivate/deleteConnector`, `askAssistant`, `approveProposal`;
+  - `saveUserAccess` sudah cek admin sebelumnya;
+  - mengganti cabang aktif tetap boleh, karena hanya cookie.
+- **UI**:
+  - Sidebar: SPV / karyawan hanya melihat menu Dashboard & Absensi (role dibaca di `(app)/layout.tsx` lewat Suspense).
+  - Smart AI chat hanya dirender untuk admin.
+  - Absensi Harian `readOnly`: radio & keterangan nonaktif, dan tombol simpan diganti label "Mode lihat saja".
+  - Daftar Karyawan / detail / Rekap sudah tanpa aksi tulis.
+  - Teks `/akses-ditolak` disesuaikan (khusus akun tanpa role).
+  - Tabel aturan akses di Pengguna & Akses diperbarui.
+- RLS di database **tidak diubah**: SPV / karyawan tetap boleh mengisi absensi lewat app mobile sesuai policy.
+- Verifikasi: `tsc`, `eslint`, dan `next build` lolos; tanpa login semua rute → 307 `/login`. Alur dengan akun SPV / karyawan belum dites.
+
+---
+
+## 2026-10-21 — RLS berbasis role + halaman Pengguna & Akses
+
+**Latar belakang:** user berencana membuat app Android yang sync ke database yang sama. Policy lama ("semua `authenticated` = akses penuh") hanya aman selama ada 1 akun, jadi role harus ada sebelum akun kedua dibuat. **Scope berubah:** akun SPV / karyawan kini dimungkinkan, tapi panel web tetap khusus admin.
+
+**Database** — migrasi `supabase/migrations/20261021000000_role_based_rls.sql` (**belum dijalankan**):
+- Tabel `app_user`:
+  - kolom: `user_id → auth.users`, `role` admin / spv / karyawan, `branch_id` (wajib untuk SPV), `employee_id` (wajib & unik untuk karyawan);
+  - akun yang sudah ada otomatis dijadikan **admin**;
+  - akun tanpa baris `app_user` tidak bisa membaca apa pun.
+- Fungsi `security definer`: `current_app_role()`, `is_admin()`, `my_branch_id()`, `my_employee_id()`, `today_wib()`, dan `admin_list_users()` (daftar akun auth, khusus admin). Eksekusi dicabut dari `anon`.
+- Trigger `app_user_keep_one_admin`: minimal harus ada satu admin.
+- Semua policy lama diganti. Ringkasannya:
+  - **Admin**: penuh.
+  - **SPV**: baca cabang / karyawan / penempatan / absensi cabangnya; isi & ubah absensi cabangnya s/d hari ini.
+  - **Karyawan**: baca data dirinya; isi & ubah absensi miliknya untuk hari ini (WIB) di cabang penempatan aktif.
+  - Master jabatan / cluster bisa dibaca semua akun terdaftar. Audit log, konektor AI, dan `app_user` khusus admin.
+
+**Web**
+- `lib/supabase/proxy.ts`: akun login non-admin diarahkan ke halaman baru `/akses-ditolak` (berisi tombol keluar). Bila migrasi belum dijalankan, proxy membiarkan lewat (mode lama).
+- Tab baru **Pengaturan → Pengguna & Akses** (`/pengaturan/akses`):
+  - ringkasan jumlah akun per role;
+  - tabel akun (email, login terakhir) dengan pilihan role, plus cakupan data (cabang untuk SPV, data karyawan untuk karyawan; satu karyawan hanya untuk satu akun);
+  - simpan sekaligus lewat ApplyBar;
+  - tabel "Aturan Akses (RLS)" yang menjelaskan hak tiap role;
+  - banner peringatan bila migrasi belum dijalankan.
+- `lib/actions/access.ts` (`saveUserAccess`): cek admin, akun sendiri tidak bisa diubah, dan validasi cakupan.
+- `lib/data/access.ts` + `AppRole` / `APP_ROLE_LABEL` di `lib/labels.ts`.
+- Akun baru tetap dibuat di Supabase Dashboard (tanpa `service_role` key di app), lalu diberi role di halaman ini.
+
+**Verifikasi:**
+- `tsc`, `eslint`, dan `next build` lolos.
+- Tanpa login, `/pengaturan/akses` & `/akses-ditolak` → 307 ke `/login`.
+- Alur setelah login belum dites (butuh migrasi & login admin).
+
+---
+
 ## 2026-10-20 — "Lihat Detail" kartu cabang membuka Daftar Karyawan
 
 - Permintaan user: tombol "Lihat Detail" di kartu cabang Dashboard langsung menuju Daftar Karyawan cabang itu. Sebelumnya tombol ini hanya mengganti cabang aktif dan tetap di Dashboard.

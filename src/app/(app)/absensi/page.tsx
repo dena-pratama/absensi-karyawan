@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { PageBody } from "@/components/shell/page-layout";
+import { getMyAccess } from "@/lib/data/access";
 import { getAttendance, getJobRoles, getRoster } from "@/lib/data/attendance";
 import { getShellData } from "@/lib/data/shell";
 import { formatTimeWIB, parseDateParam, todayWIB } from "@/lib/format";
@@ -24,7 +25,7 @@ export default function AbsensiHarianPage({ searchParams }: PageProps<"/absensi"
 }
 
 async function Content({ searchParams }: { searchParams: PageProps<"/absensi">["searchParams"] }) {
-  const { activeBranch } = await getShellData();
+  const [{ activeBranch }, { role }] = await Promise.all([getShellData(), getMyAccess()]);
   const today = todayWIB();
   const raw = (await searchParams).tanggal;
   const date = parseDateParam(typeof raw === "string" ? raw : undefined, today);
@@ -71,6 +72,7 @@ async function Content({ searchParams }: { searchParams: PageProps<"/absensi">["
       rows={rows}
       roles={roles.map((r) => ({ id: r.id, name: r.name }))}
       lastUpdate={last ? formatTimeWIB(last) : null}
+      readOnly={role !== "admin"}
     />
   );
 }

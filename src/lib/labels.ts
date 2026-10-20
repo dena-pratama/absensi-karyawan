@@ -27,3 +27,12 @@ export const ATTENDANCE_LABEL: Record<AttendanceStatus, string> = {
 
 /** Kode cabang & NIK karyawan bebas format (huruf, angka, simbol, spasi): wajib diisi, maks. 30 karakter. */
 export const CODE_MAX = 30;
+
+/** Role akun login (lihat migrasi role_based_rls). */
+export type AppRole = "admin" | "spv" | "karyawan";
+
+export const APP_ROLE_LABEL: Record<AppRole, string> = {
+  admin: "Admin",
+  spv: "SPV Cabang",
+  karyawan: "Karyawan",
+};

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getRoster } from "@/lib/data/attendance";
 import { parseDateParam, todayWIB } from "@/lib/format";
 import type { AttendanceStatus } from "@/lib/labels";
+import { READ_ONLY_ERROR, isAdmin } from "@/lib/data/access";
 import { createClient } from "@/lib/supabase/server";
 
 export type AttendanceChange = {
@@ -27,6 +28,7 @@ export async function saveAttendance(
   date: string,
   changes: AttendanceChange[],
 ): Promise<SaveResult> {
+  if (!(await isAdmin())) return { ok: false, error: READ_ONLY_ERROR };
   const today = todayWIB();
   if (parseDateParam(date, "") !== date) return { ok: false, error: "Tanggal tidak valid." };
   if (date > today) return { ok: false, error: "Tidak bisa mengisi absensi untuk tanggal yang akan datang." };

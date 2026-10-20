@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { BranchSetting, EmployeeSetting, RoleSetting } from "@/lib/data/settings";
 import { BRANCH_TYPE_LABEL, CODE_MAX, type BranchType } from "@/lib/labels";
 import { parseDateParam, todayWIB } from "@/lib/format";
+import { READ_ONLY_ERROR, isAdmin } from "@/lib/data/access";
 import { createClient } from "@/lib/supabase/server";
 
 export type ApplyResult = { ok: true; applied: number } | { ok: false; error: string; applied: number };
@@ -57,6 +58,7 @@ function employeeColumns(e: EmployeeSetting) {
  * (kalau penempatan lama baru dibuat hari ini, cukup diperbarui).
  */
 export async function applyEmployeeChanges(rows: EmployeeSetting[]): Promise<ApplyResult> {
+  if (!(await isAdmin())) return { ok: false, error: READ_ONLY_ERROR, applied: 0 };
   for (const r of rows) {
     const err = validateEmployee(r);
     if (err) return { ok: false, error: err, applied: 0 };
@@ -173,6 +175,7 @@ function branchColumns(b: BranchSetting) {
 }
 
 export async function applyBranchChanges(rows: BranchSetting[]): Promise<ApplyResult> {
+  if (!(await isAdmin())) return { ok: false, error: READ_ONLY_ERROR, applied: 0 };
   for (const r of rows) {
     const err = validateBranch(r);
     if (err) return { ok: false, error: err, applied: 0 };
@@ -199,6 +202,7 @@ export async function applyBranchChanges(rows: BranchSetting[]): Promise<ApplyRe
 const ROLE_CODE_RE = /^[A-Z][A-Z0-9_]{1,29}$/;
 
 export async function applyRoleChanges(rows: RoleSetting[]): Promise<ApplyResult> {
+  if (!(await isAdmin())) return { ok: false, error: READ_ONLY_ERROR, applied: 0 };
   for (const r of rows) {
     if (!ROLE_CODE_RE.test(r.code.trim().toUpperCase()))
       return { ok: false, error: `Kode jabatan "${r.code}" hanya huruf besar, angka, dan _ (cth: DRIVER_CDD).`, applied: 0 };

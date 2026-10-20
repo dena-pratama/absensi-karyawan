@@ -40,6 +40,9 @@ const MAIN_NAV: NavItem[] = [
   { href: "/laporan", label: "Laporan Absensi", paths: [ICONS.laporan], match: (p) => p.startsWith("/laporan") },
 ];
 
+/** Menu yang terlihat untuk akun hanya-lihat (sama dengan VIEWER_PATHS di proxy). */
+const VIEWER_HREFS = new Set(["/", "/absensi"]);
+
 const SETTINGS_NAV: NavItem = {
   href: "/pengaturan",
   label: "Pengaturan",
@@ -73,19 +76,19 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
   );
 }
 
-function SidebarView({ pathname, className }: { pathname: string; className: string }) {
+function SidebarView({ pathname, className, readOnly }: { pathname: string; className: string; readOnly: boolean }) {
   return (
     <aside
       className={`bg-panel border border-line-strong rounded-full shadow-xl flex-shrink-0 flex items-center justify-between
         flex-row px-6 py-2.5 md:w-16 md:flex-col md:py-6 md:px-3 md:self-start md:sticky md:top-7 ${className}`}
     >
       <nav aria-label="Navigasi utama" className="flex flex-row md:flex-col items-center gap-6">
-        {MAIN_NAV.map((item) => (
+        {(readOnly ? MAIN_NAV.filter((i) => VIEWER_HREFS.has(i.href)) : MAIN_NAV).map((item) => (
           <NavLink key={item.href} item={item} pathname={pathname} />
         ))}
       </nav>
       <div className="flex flex-row md:flex-col items-center gap-6 md:pt-10">
-        <NavLink item={SETTINGS_NAV} pathname={pathname} />
+        {!readOnly && <NavLink item={SETTINGS_NAV} pathname={pathname} />}
         <form action={logout}>
           <button
             type="submit"
@@ -101,15 +104,16 @@ function SidebarView({ pathname, className }: { pathname: string; className: str
   );
 }
 
-function SidebarWithPath({ className }: { className: string }) {
-  return <SidebarView pathname={usePathname()} className={className} />;
+function SidebarWithPath({ className, readOnly }: { className: string; readOnly: boolean }) {
+  return <SidebarView pathname={usePathname()} className={className} readOnly={readOnly} />;
 }
 
 /** usePathname() butuh Suspense di rute dinamis; fallback = sidebar tanpa state aktif. */
-export function Sidebar({ className = "" }: { className?: string }) {
+/** readOnly = akun SPV / karyawan: hanya menu Dashboard & Absensi. */
+export function Sidebar({ className = "", readOnly = false }: { className?: string; readOnly?: boolean }) {
   return (
-    <Suspense fallback={<SidebarView pathname="" className={className} />}>
-      <SidebarWithPath className={className} />
+    <Suspense fallback={<SidebarView pathname="" className={className} readOnly={readOnly} />}>
+      <SidebarWithPath className={className} readOnly={readOnly} />
     </Suspense>
   );
 }
