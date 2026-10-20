@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { PageBody } from "@/components/shell/page-layout";
 import { getMyAccess } from "@/lib/data/access";
 import { getAttendance, getJobRoles, getRoster } from "@/lib/data/attendance";
+import { getCheckDetails } from "@/lib/data/check";
 import { getShellData } from "@/lib/data/shell";
 import { formatTimeWIB, parseDateParam, todayWIB } from "@/lib/format";
 import { AbsensiHeader } from "./_components/absensi-header";
@@ -42,10 +43,8 @@ async function Content({ searchParams }: { searchParams: PageProps<"/absensi">["
   }
 
   const [roster, roles] = await Promise.all([getRoster(activeBranch.id, date), getJobRoles()]);
-  const attendance = await getAttendance(
-    roster.map((r) => r.employeeId),
-    date,
-  );
+  const ids = roster.map((r) => r.employeeId);
+  const [attendance, checks] = await Promise.all([getAttendance(ids, date), getCheckDetails(ids, date)]);
   const byEmployee = new Map(attendance.map((a) => [a.employeeId, a]));
 
   const rows: FormRow[] = roster.map((r) => {
@@ -58,6 +57,7 @@ async function Content({ searchParams }: { searchParams: PageProps<"/absensi">["
       roleName: r.roleName,
       status: a?.status ?? null,
       note: a?.note ?? "",
+      check: checks.byEmployee.get(r.employeeId) ?? null,
     };
   });
   const last = attendance.reduce<string | null>((m, a) => (!m || a.updatedAt > m ? a.updatedAt : m), null);

@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { openDatePicker } from "@/components/date-input";
 import { Icon } from "@/components/icon";
 import { saveAttendance, type AttendanceChange } from "@/lib/actions/attendance";
 import { initials, shiftDay } from "@/lib/format";
+import type { CheckDetail } from "@/lib/data/check";
 import type { AttendanceStatus } from "@/lib/labels";
+import { CheckPhotoCell, CheckTimeCell, PhotoViewer, type PhotoView } from "./check-cells";
 
 export type FormRow = {
   employeeId: string;
@@ -16,6 +18,8 @@ export type FormRow = {
   roleName: string;
   status: AttendanceStatus | null;
   note: string;
+  /** Check in / out dari app mobile (null = belum ada). */
+  check: CheckDetail | null;
 };
 
 type Entry = { status: AttendanceStatus | null; note: string };
@@ -73,6 +77,12 @@ export function AttendanceForm({
   const [saving, startSaving] = useTransition();
   const [navigating, startNavigating] = useTransition();
   const dateRef = useRef<HTMLInputElement>(null);
+  const [photo, setPhoto] = useState<PhotoView | null>(null);
+  const closePhoto = useCallback(() => setPhoto(null), []);
+  const openPhoto = (r: FormRow, kind: PhotoView["kind"]) => {
+    const point = r.check?.[kind];
+    if (point) setPhoto({ name: r.name, nik: r.nik, kind, point });
+  };
 
   const openPicker = () => openDatePicker(dateRef.current);
 
@@ -273,7 +283,7 @@ export function AttendanceForm({
 
       {/* Tabel */}
       <div className={`overflow-x-auto rounded-xl border border-line bg-shell/60 ${navigating ? "opacity-60" : ""}`}>
-        <table className="w-full text-left text-xs border-collapse min-w-[760px]">
+        <table className="w-full text-left text-xs border-collapse min-w-[1080px]">
           <thead>
             <tr className="text-gray-400 bg-panel border-b border-line">
               <th scope="col" className="py-3 px-3 font-medium text-center w-12">No</th>
@@ -284,6 +294,10 @@ export function AttendanceForm({
                   {c.label}
                 </th>
               ))}
+              <th scope="col" className="py-3 px-3 font-medium w-20">In</th>
+              <th scope="col" className="py-3 px-3 font-medium w-20">Out</th>
+              <th scope="col" className="py-3 px-3 font-medium w-16 text-center">Foto In</th>
+              <th scope="col" className="py-3 px-3 font-medium w-16 text-center">Foto Out</th>
               <th scope="col" className="py-3 px-4 font-medium w-56">Keterangan Singkat</th>
             </tr>
           </thead>
@@ -328,6 +342,22 @@ export function AttendanceForm({
                       </label>
                     </td>
                   ))}
+                  <td className="py-3 px-3">
+                    <CheckTimeCell point={r.check?.in ?? null} />
+                  </td>
+                  <td className="py-3 px-3">
+                    <CheckTimeCell point={r.check?.out ?? null} />
+                  </td>
+                  <td className="py-2 px-3">
+                    <div className="flex justify-center">
+                      <CheckPhotoCell point={r.check?.in ?? null} label={`check in ${r.name}`} onOpen={() => openPhoto(r, "in")} />
+                    </div>
+                  </td>
+                  <td className="py-2 px-3">
+                    <div className="flex justify-center">
+                      <CheckPhotoCell point={r.check?.out ?? null} label={`check out ${r.name}`} onOpen={() => openPhoto(r, "out")} />
+                    </div>
+                  </td>
                   <td className="py-2 px-4">
                     <input
                       type="text"
@@ -345,7 +375,7 @@ export function AttendanceForm({
             })}
             {visible.length === 0 && (
               <tr>
-                <td colSpan={7} className="py-10 text-center text-gray-400">
+                <td colSpan={11} className="py-10 text-center text-gray-400">
                   {rows.length === 0 ? (
                     <>
                       Belum ada karyawan yang ditempatkan di cabang ini pada tanggal tersebut.
@@ -414,6 +444,8 @@ export function AttendanceForm({
         </div>
         )}
       </div>
+
+      <PhotoViewer view={photo} onClose={closePhoto} />
 
       {/* Toast */}
       <div

@@ -5,6 +5,24 @@ Format: entri terbaru di paling atas.
 
 ---
 
+## 2026-10-21 — Kolom In / Out / Foto In / Foto Out di Absensi Harian
+
+- Permintaan user: tabel Absensi Harian menampilkan detail check in / check out yang diinput karyawan dari app mobile.
+- Data dari migrasi `20261021020000_attendance_check_in_out.sql` (entri di bawah): kolom `check_in_*` / `check_out_*` dan bucket privat `attendance-selfie`. Tidak ada perubahan skema di langkah ini.
+- `lib/data/check.ts` → `getCheckDetails(employeeIds, date)`:
+  - mengambil detail check in / out satu tanggal;
+  - foto dibuka lewat **signed URL 1 jam** (RLS storage tetap berlaku: admin semua, SPV cabangnya);
+  - bila kolom belum ada (42703), kembali kosong tanpa error.
+- Tabel Absensi Harian:
+  - 4 kolom baru setelah status: **In**, **Out** (jam WIB + jarak ke cabang), **Foto In**, **Foto Out** (thumbnail);
+  - lebar minimum tabel 1080px (bisa digeser horizontal);
+  - komponen di `absensi/_components/check-cells.tsx`.
+- Klik foto membuka **lightbox**: selfie besar, nama, NIK, jenis, jam, jarak ke cabang, akurasi GPS, koordinat, dan link Google Maps. Tutup dengan Esc / klik luar.
+- Ceklis status & keterangan admin tetap seperti sebelumnya. Kolom check in / out tidak bisa diubah dari web (dikunci trigger database).
+- Verifikasi: `tsc`, `eslint`, dan `next build` lolos. Tampilan belum dilihat langsung karena sesi login di Browser pane kedaluwarsa.
+
+---
+
 ## 2026-10-21 — Migrasi absen mandiri app mobile (Check In / Check Out, GPS + selfie)
 
 - Migrasi baru `supabase/migrations/20261021020000_attendance_check_in_out.sql` untuk app mobile
