@@ -1,23 +1,269 @@
 # Absensi Ekspedisi
 
-Web app absensi harian sederhana (1 admin, checklist Hadir / Sakit / Tidak Hadir).
-Stack: Next.js 16 (App Router) + Tailwind CSS 4 + Supabase.
+Aplikasi web absensi harian karyawan untuk jaringan ekspedisi (hub, cabang, dan outlet).
+Satu admin mencentang kehadiran setiap karyawan per hari — **Hadir**, **Sakit**, atau
+**Tidak Hadir** — lalu memantau ringkasan, rekap bulanan, dan menarik laporan.
 
-Riwayat pengembangan & keputusan: lihat [DEVLOG.md](DEVLOG.md).
+![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=nextdotjs)
+![React](https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=black)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-38bdf8?logo=tailwindcss&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ecf8e?logo=supabase&logoColor=white)
+![Versi](https://img.shields.io/badge/versi-0.2-00d2ff)
 
-## Setup
+> Riwayat pengembangan dan keputusan desain tercatat lengkap di [DEVLOG.md](DEVLOG.md).
 
-1. Buat project di [Supabase](https://supabase.com), lalu jalankan
-   `supabase/migrations/20261020000000_init_schema.sql` di **SQL Editor**.
-2. Di **Authentication → Sign In / Providers**, matikan *Allow new users to sign up*.
-3. Di **Authentication → Users**, buat 1 user admin (email + password).
-4. Salin `.env.example` menjadi `.env.local`, isi URL & publishable key dari
-   **Project Settings → API Keys**.
-5. Jalankan:
+---
 
+## Daftar Isi
+
+- [Ruang Lingkup](#ruang-lingkup)
+- [Fitur](#fitur)
+- [Teknologi](#teknologi)
+- [Arsitektur](#arsitektur)
+- [Skema Database](#skema-database)
+- [Memulai](#memulai)
+- [Variabel Lingkungan](#variabel-lingkungan)
+- [Struktur Direktori](#struktur-direktori)
+- [Script](#script)
+- [Keamanan](#keamanan)
+- [Deploy](#deploy)
+
+---
+
+## Ruang Lingkup
+
+Aplikasi ini sengaja dibuat **sederhana**:
+
+| Termasuk | Tidak termasuk |
+| --- | --- |
+| 1 akun admin (Supabase Auth, email + password) | Akun / login untuk karyawan |
+| Ceklis harian: Hadir / Sakit / Tidak Hadir + keterangan | Jam masuk, shift, keterlambatan |
+| "Role" = jabatan karyawan (label saja) | Hak akses berbasis role |
+| Riwayat penempatan (mutasi cabang / ganti jabatan) | Selfie, GPS / geofence, biometrik |
+| Rekap bulanan & laporan CSV / PDF | Approval, closing periode, insentif |
+
+## Fitur
+
+### Dashboard
+- Ringkasan kehadiran hari ini (hadir, sakit, tidak hadir, belum diabsen).
+- Carousel kartu cabang dengan persentase kehadiran per cabang.
+
+### Absensi & Karyawan
+- **Absensi Harian** — tabel ceklis per cabang aktif:
+  - pencarian, filter jabatan, dan tombol *Tandai semua hadir*;
+  - pemilih tanggal dengan kalender, tombol hari sebelumnya / berikutnya, dan *Hari ini*;
+  - tanggal yang akan datang tidak bisa diisi;
+  - hanya baris yang berubah yang dikirim ke server.
+- **Daftar Karyawan** — daftar personil cabang, dengan halaman detail berisi biodata, penempatan, dan grafik tren kehadiran.
+- **Rekap Bulanan** — matriks tanggal × karyawan per bulan, bisa difilter jabatan dan diekspor ke CSV.
+
+### Laporan Absensi
+- Filter rentang tanggal, cabang, karyawan, dan status.
+- Pratinjau di layar, lalu unduh **CSV** atau **PDF** (`@react-pdf/renderer`).
+
+### Pengaturan & Master Data
+- **Manajemen Karyawan**:
+  - biodata, kontrak (tetap / PKWT / mitra), No. WhatsApp, tanggal bergabung;
+  - penempatan cabang & jabatan.
+- **Manajemen Cabang**:
+  - kode, tipe fasilitas, cluster wilayah, PIC;
+  - jam gate atau 24 jam, alamat, status.
+- **Master Jabatan** — daftar jabatan dan status aktifnya.
+- Perubahan ditampung sebagai **draf** dan baru disimpan saat klik *Terapkan Pengaturan*.
+- Panel **Log Perubahan Terkini**, diisi otomatis oleh trigger database.
+
+### Smart AI Analytics
+- Asisten chat yang menjawab pertanyaan tentang data absensi, memakai *tool calling* atas data aplikasi:
+  - `daftar_cabang`;
+  - `ringkasan_kehadiran_harian`;
+  - `cari_absensi`;
+  - `daftar_karyawan`;
+  - `usulkan_perubahan_absensi`.
+- Provider bisa dipilih: **Anthropic (Claude)**, **OpenAI**, atau **Google Gemini**. Dikonfigurasi di *Pengaturan → Konektor AI*.
+- AI **tidak pernah mengubah data sendiri**. Usulan perubahan absensi ditandatangani (HMAC) dan baru dijalankan setelah admin menyetujuinya.
+
+### Tampilan
+- Desain **Cyber Operations Dark** dengan **Light Mode**. Pilihan tema disimpan di browser dan diterapkan tanpa kedip saat halaman dimuat.
+- Responsif untuk desktop dan mobile.
+
+## Teknologi
+
+| Lapisan | Teknologi |
+| --- | --- |
+| Framework | [Next.js 16](https://nextjs.org) (App Router, Turbopack, Cache Components / Partial Prerendering) |
+| UI | React 19, Tailwind CSS 4, Material Symbols, font Inter |
+| Backend | Server Components + Server Actions + Route Handlers |
+| Database & Auth | [Supabase](https://supabase.com) — PostgreSQL, Row Level Security, Supabase Auth (`@supabase/ssr`) |
+| Laporan | `@react-pdf/renderer` (PDF), CSV native |
+| AI | `@anthropic-ai/sdk`, `openai`, `@google/genai`, `react-markdown` |
+| Kualitas | TypeScript (strict), ESLint (`eslint-config-next`) |
+
+## Arsitektur
+
+```
+Browser ──► proxy.ts (refresh sesi, redirect ke /login bila belum masuk)
+              │
+              ▼
+        App Router (src/app)
+        ├─ Server Components ──► src/lib/data/*     (query baca, server-only)
+        ├─ Server Actions    ──► src/lib/actions/*  (validasi + tulis data)
+        └─ Route Handlers    ──► ekspor CSV / PDF
+              │
+              ▼
+        Supabase (PostgreSQL + RLS)  ◄── hanya user "authenticated"
+```
+
+- **Data dibaca di server.** Bagian halaman yang bergantung pada request dibungkus `<Suspense>`, jadi kerangka halaman tampil instan (Partial Prerendering) dan datanya menyusul lewat streaming.
+- **Semua penulisan lewat Server Action**, dengan validasi ulang di server. Client tidak pernah menulis langsung ke database.
+- **Cabang aktif** dipilih lewat pemilih cabang di topbar dan dipakai bersama oleh Absensi, Rekap, dan Pengaturan.
+- **AI berjalan di server.** API key disimpan terenkripsi (AES-256-GCM) dan hanya didekripsi di server, tidak pernah dikirim ke browser.
+
+## Skema Database
+
+```
+job_role ◄─┐                    ┌─► branch ──► cluster
+           │                    │      │
+     employee_assignment ───────┘      └─► employee (PIC)
+           │   (riwayat penempatan: valid_from / valid_to)
+           ▼
+       employee ◄── attendance_daily ──► branch, job_role (snapshot per tanggal)
+
+audit_log     ← diisi trigger untuk job_role, employee, branch
+ai_connector  ← konfigurasi provider AI (API key terenkripsi)
+```
+
+| Tabel | Fungsi |
+| --- | --- |
+| `employee` | Biodata karyawan (NIK unik, kontrak, WhatsApp, tanggal bergabung, status aktif). |
+| `branch` | Cabang / hub / outlet: kode unik, tipe fasilitas, cluster, PIC, jam gate, status. |
+| `job_role` | Master jabatan (label). |
+| `cluster` | Wilayah layanan cabang. |
+| `employee_assignment` | Riwayat penempatan karyawan ke cabang & jabatan. Maksimal satu penempatan aktif per karyawan, dan penempatan pertama dimulai dari tanggal bergabung. |
+| `attendance_daily` | Satu baris per karyawan per tanggal (`unique (employee_id, attendance_date)`), menyimpan snapshot cabang & jabatan saat itu. |
+| `audit_log` | Log perubahan master data, ditulis otomatis oleh trigger. |
+| `ai_connector` | Satu baris per provider AI, maksimal satu yang aktif. |
+
+Semua tabel memakai **Row Level Security**: hanya user `authenticated` (admin) yang punya akses, dan `audit_log` hanya bisa dibaca.
+
+## Memulai
+
+### Prasyarat
+- Node.js 20 atau lebih baru, dan npm.
+- Project [Supabase](https://supabase.com) (paket Free sudah cukup).
+
+### 1. Siapkan database
+Jalankan file berikut **berurutan** di **Supabase → SQL Editor**:
+
+| # | File | Keterangan |
+| --- | --- | --- |
+| 1 | `supabase/migrations/20261020000000_init_schema.sql` | Skema utama, RLS, trigger, dan data awal (jabatan & cluster). |
+| 2 | `supabase/migrations/20261020010000_ai_connector.sql` | Tabel konektor AI. |
+| 3 | `supabase/migrations/20261020020000_qc_cleanup.sql` | Index foreign key, dan hapus view yang tidak dipakai. |
+| 4 | `supabase/migrations/20261020030000_free_format_codes.sql` | Kode cabang & NIK bebas format (maks. 30 karakter). |
+| 5 | `supabase/migrations/20261020040000_assignment_from_join_date.sql` | Penempatan pertama dimulai dari tanggal bergabung. |
+| — | `supabase/seed_demo.sql` | *Opsional* — data demo (cabang & karyawan fiktif). |
+
+### 2. Siapkan akun admin
+1. **Authentication → Sign In / Providers** → matikan *Allow new users to sign up*.
+2. **Authentication → Users** → buat **satu** user admin (email + password).
+
+### 3. Konfigurasi environment
+```bash
+cp .env.example .env.local
+```
+Isi nilainya sesuai [Variabel Lingkungan](#variabel-lingkungan).
+
+### 4. Jalankan
 ```bash
 npm install
 npm run dev
 ```
+Buka <http://localhost:3000>. Kamu akan diarahkan ke `/login`; masuk dengan akun admin.
 
-Buka http://localhost:3000 → otomatis diarahkan ke `/login`.
+## Variabel Lingkungan
+
+| Variabel | Wajib | Keterangan |
+| --- | --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | Ya | URL project, dari **Project Settings → API Keys**. |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Ya | Publishable key (`sb_publishable_…`) atau legacy anon key. |
+| `AI_ENCRYPTION_KEY` | Untuk fitur AI | Kunci 32 byte (base64) untuk mengenkripsi API key provider AI. |
+
+Membuat `AI_ENCRYPTION_KEY`:
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+```
+
+> **Penting:**
+> - Jangan mengganti `AI_ENCRYPTION_KEY` setelah API key AI tersimpan, karena key yang sudah tersimpan tidak bisa didekripsi lagi.
+> - Jangan pernah memakai `service_role` key di aplikasi ini.
+
+## Struktur Direktori
+
+```
+.
+├── src/
+│   ├── app/
+│   │   ├── (app)/                  # Halaman setelah login (memakai AppShell)
+│   │   │   ├── page.tsx            # Dashboard
+│   │   │   ├── absensi/            # Absensi Harian, Daftar Karyawan, Rekap Bulanan (+ ekspor CSV)
+│   │   │   ├── laporan/            # Laporan + ekspor CSV / PDF
+│   │   │   ├── pengaturan/         # Karyawan, Cabang, Jabatan, Konektor AI
+│   │   │   └── layout.tsx          # Grid AppShell: topbar, sidebar, konten
+│   │   ├── login/                  # Halaman & action login
+│   │   ├── layout.tsx              # Root layout, metadata, skrip tema
+│   │   ├── globals.css             # Token desain (Tailwind @theme)
+│   │   ├── theme.css               # Override token untuk Light Mode
+│   │   └── icon.svg                # Favicon
+│   ├── components/
+│   │   ├── shell/                  # Topbar, sidebar, pemilih cabang, toggle tema, layout halaman
+│   │   ├── ai/                     # Panel chat Smart AI
+│   │   └── icon.tsx                # Wrapper Material Symbols
+│   ├── lib/
+│   │   ├── data/                   # Query baca (server-only)
+│   │   ├── actions/                # Server Actions (absensi, pengaturan, cabang, AI)
+│   │   ├── ai/                     # Engine, provider, tools, enkripsi, proposal
+│   │   ├── supabase/               # Client Supabase (server & proxy)
+│   │   ├── format.ts               # Utilitas tanggal / format (zona WIB)
+│   │   ├── labels.ts               # Label & konstanta domain
+│   │   └── theme.ts                # Kunci penyimpanan tema
+│   └── proxy.ts                    # Proteksi rute & refresh sesi (pengganti middleware)
+├── supabase/
+│   ├── migrations/                 # Skema & migrasi SQL (jalankan berurutan)
+│   └── seed_demo.sql               # Data demo opsional
+├── DEVLOG.md                       # Catatan pengembangan
+└── .env.example                    # Contoh konfigurasi environment
+```
+
+## Script
+
+| Perintah | Fungsi |
+| --- | --- |
+| `npm run dev` | Server development (Turbopack) di `localhost:3000`. |
+| `npm run build` | Build produksi. |
+| `npm run start` | Menjalankan hasil build. |
+| `npm run lint` | Pemeriksaan ESLint. |
+| `npx tsc --noEmit` | Pemeriksaan tipe TypeScript. |
+
+## Keamanan
+
+- **Satu admin saja.** Pendaftaran akun baru dimatikan di Supabase, dan semua tabel dilindungi RLS untuk role `authenticated`.
+- **Rute terlindungi.** `src/proxy.ts` mengarahkan pengguna yang belum login ke `/login`.
+- **Validasi ganda.** Semua input divalidasi di form dan divalidasi ulang di Server Action.
+- **Rahasia aman.**
+  - API key AI dienkripsi AES-256-GCM sebelum disimpan, dan hanya 4 karakter terakhirnya yang ditampilkan.
+  - `.env.local` tidak pernah di-commit (lihat `.gitignore`).
+- **AI dengan persetujuan.** Perubahan data yang diusulkan AI harus disetujui admin terlebih dahulu.
+- **Jejak audit.** Perubahan master data tercatat otomatis di `audit_log`.
+
+## Deploy
+
+Aplikasi bisa di-deploy ke platform yang mendukung Next.js 16, misalnya [Vercel](https://vercel.com):
+
+1. Import repository ini.
+2. Isi variabel lingkungan seperti pada `.env.local`.
+3. Di Supabase **Authentication → URL Configuration**, tambahkan domain produksi.
+4. Deploy.
+
+---
+
+© 2026 Absensi Ekspedisi · Dikembangkan oleh Dena Pratama.

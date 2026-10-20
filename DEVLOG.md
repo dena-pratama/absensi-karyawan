@@ -5,6 +5,17 @@ Format: entri terbaru di paling atas.
 
 ---
 
+## 2026-10-20 — README diperbarui
+
+- `README.md` ditulis ulang agar lebih profesional dan lengkap:
+  - badge stack, daftar isi, dan tabel ruang lingkup (termasuk / tidak termasuk);
+  - fitur per menu, tabel teknologi, diagram arsitektur, dan relasi + tabel skema database;
+  - langkah setup dengan urutan 5 migrasi + seed demo;
+  - tabel variabel lingkungan, struktur direktori, script, keamanan, dan deploy.
+- Klaim di README dicek ke kode: TypeScript strict, HMAC proposal AI, redirect `/login` di proxy, tampilan 4 karakter terakhir API key.
+
+---
+
 ## 2026-10-20 — Fix: absensi tanggal kemarin tidak bisa diisi
 
 - Laporan user: absensi hari ini bisa diisi, tapi saat pindah ke tanggal kemarin tidak bisa.
