@@ -22,7 +22,7 @@ Format: entri terbaru di paling atas.
 - Perbaikan ada di migrasi baru `supabase/migrations/20261020020000_qc_cleanup.sql`, yang **belum dijalankan** (dijalankan admin di SQL Editor). Isinya hanya menambah index dan menghapus view yang tidak terpakai; tidak ada data yang berubah.
 
 **Repo**
-- Project dijadikan repo git dan di-push ke GitHub sebagai repo private `Absensi-Ekspedisi-v0.2`. GitHub tidak mengizinkan spasi di nama repo. `.env.local` tidak ikut ter-commit.
+- Project dijadikan repo git (branch `main`, commit awal). `.env.local` dan `.claude/` tidak ikut ter-commit. Push ke GitHub (`Absensi-Ekspedisi-v0.2`; GitHub tidak mengizinkan spasi di nama repo) masih menunggu: GitHub CLI belum terpasang di laptop ini.
 
 ---
 
