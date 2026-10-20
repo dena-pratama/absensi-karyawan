@@ -5,6 +5,21 @@ Format: entri terbaru di paling atas.
 
 ---
 
+## 2026-10-21 — Migrasi absen mandiri app mobile (Check In / Check Out, GPS + selfie)
+
+- Migrasi baru `supabase/migrations/20261021020000_attendance_check_in_out.sql` untuk app mobile
+  (`absensi-karyawan-mobile`). **Belum dijalankan** di Supabase. Jalankan sekali di SQL Editor.
+- `attendance_daily` + kolom `check_in_*` / `check_out_*`: jam, lat/lng, akurasi, jarak ke cabang, path foto.
+- Bucket Storage privat `attendance-selfie` (JPEG, maks 2 MB). Karyawan unggah ke folder `<employee_id>/`;
+  baca: admin semua, karyawan miliknya, SPV karyawan di cabangnya.
+- Fungsi `attendance_check(kind, lat, lng, akurasi, foto, mocked)` jadi satu-satunya jalan karyawan absen:
+  jam dari server, jarak dihitung di server (tolak di luar `geofence_radius_m`), tolak fake GPS,
+  foto harus sudah terunggah di folder karyawan itu.
+- Policy `rls_karyawan_insert` / `rls_karyawan_update` dihapus. Kolom check-in/out dikunci trigger,
+  jadi tidak bisa diubah manual dari panel. **Catatan:** kalau `role_based_rls.sql` dijalankan ulang,
+  kedua policy itu muncul lagi. Jalankan ulang migrasi ini sesudahnya.
+- Belum ada: tampilan jam/foto check-in di panel web, aturan telat/shift.
+
 ## 2026-10-21 — Peta interaktif untuk memilih titik cabang
 
 - Feedback user: belum bisa memilih titik langsung di peta, karena sebelumnya hanya ada pratinjau iframe statis.
