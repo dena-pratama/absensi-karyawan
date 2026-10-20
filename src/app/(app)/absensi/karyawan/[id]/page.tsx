@@ -21,7 +21,7 @@ import { ATTENDANCE_LABEL, BRANCH_TYPE_LABEL, type AttendanceStatus } from "@/li
 import { AbsensiHeader } from "../../_components/absensi-header";
 import { TrendChart, type TrendPoint } from "./trend-chart";
 
-export const metadata: Metadata = { title: "Detail Karyawan — Absensi Ekspedisi" };
+export const metadata: Metadata = { title: "Detail Karyawan" };
 
 const TREND_MONTHS = 6;
 

@@ -4,7 +4,7 @@ import { ThemeToggle } from "@/components/shell/theme-toggle";
 import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = {
-  title: "Masuk — Absensi Ekspedisi",
+  title: "Masuk",
 };
 
 export default function LoginPage() {

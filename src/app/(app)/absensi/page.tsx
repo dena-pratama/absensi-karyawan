@@ -8,7 +8,7 @@ import { formatTimeWIB, parseDateParam, todayWIB } from "@/lib/format";
 import { AbsensiHeader } from "./_components/absensi-header";
 import { AttendanceForm, type FormRow } from "./_components/attendance-form";
 
-export const metadata: Metadata = { title: "Absensi Harian — Absensi Ekspedisi" };
+export const metadata: Metadata = { title: "Absensi Harian" };
 
 export default function AbsensiHarianPage({ searchParams }: PageProps<"/absensi">) {
   return (

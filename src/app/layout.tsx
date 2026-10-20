@@ -12,7 +12,7 @@ const inter = Inter({
 const themeScript = `(function(){try{var t=localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)});if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}})()`;
 
 export const metadata: Metadata = {
-  title: "Absensi Ekspedisi",
+  title: { template: "%s | Absensi Ekspedisi", default: "Absensi Ekspedisi" },
   description: "Portal operasional absensi harian karyawan ekspedisi",
 };
 

@@ -7,7 +7,7 @@ import { formatMonthLong, monthOf, monthRange, todayWIB } from "@/lib/format";
 import { AbsensiHeader } from "../_components/absensi-header";
 import { EmployeeTable, type EmployeeListRow } from "./employee-table";
 
-export const metadata: Metadata = { title: "Daftar Karyawan — Absensi Ekspedisi" };
+export const metadata: Metadata = { title: "Daftar Karyawan" };
 
 export default function DaftarKaryawanPage({ searchParams }: PageProps<"/absensi/karyawan">) {
   return (

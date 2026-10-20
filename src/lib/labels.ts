@@ -24,3 +24,6 @@ export const ATTENDANCE_LABEL: Record<AttendanceStatus, string> = {
   sakit: "Sakit",
   tidak_hadir: "Tidak Hadir",
 };
+
+/** Kode cabang & NIK karyawan bebas format (huruf, angka, simbol, spasi): wajib diisi, maks. 30 karakter. */
+export const CODE_MAX = 30;

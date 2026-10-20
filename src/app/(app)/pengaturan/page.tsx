@@ -6,7 +6,7 @@ import { SettingsHeader } from "./_components/settings-header";
 import { SettingsSkeleton } from "./_components/settings-skeleton";
 import { EmployeeManager } from "./employee-manager";
 
-export const metadata: Metadata = { title: "Manajemen Karyawan — Absensi Ekspedisi" };
+export const metadata: Metadata = { title: "Manajemen Karyawan" };
 
 export default function PengaturanKaryawanPage() {
   return (

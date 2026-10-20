@@ -11,7 +11,7 @@ import type { AttendanceStatus } from "@/lib/labels";
 import { AbsensiHeader } from "../_components/absensi-header";
 import { RoleFilter } from "./role-filter";
 
-export const metadata: Metadata = { title: "Rekap Bulanan — Absensi Ekspedisi" };
+export const metadata: Metadata = { title: "Rekap Bulanan" };
 
 export default function RekapPage({ searchParams }: PageProps<"/absensi/rekap">) {
   return (

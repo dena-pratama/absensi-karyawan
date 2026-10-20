@@ -6,7 +6,7 @@ import { SettingsHeader } from "../_components/settings-header";
 import { SettingsSkeleton } from "../_components/settings-skeleton";
 import { RoleManager } from "./role-manager";
 
-export const metadata: Metadata = { title: "Master Jabatan — Absensi Ekspedisi" };
+export const metadata: Metadata = { title: "Master Jabatan" };
 
 export default function PengaturanJabatanPage() {
   return (

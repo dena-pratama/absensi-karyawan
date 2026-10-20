@@ -5,6 +5,64 @@ Format: entri terbaru di paling atas.
 
 ---
 
+## 2026-10-20 — Fix: absensi tanggal kemarin tidak bisa diisi
+
+- Laporan user: absensi hari ini bisa diisi, tapi saat pindah ke tanggal kemarin tidak bisa.
+- Penyebab:
+  - Penempatan karyawan baru selalu dibuat dengan `valid_from = hari disimpan`.
+  - Roster Absensi Harian (`getRoster`) hanya memuat karyawan yang penempatannya sudah berlaku pada tanggal itu.
+  - Akibatnya karyawan yang baru ditambahkan tidak muncul di tanggal sebelumnya.
+- Perbaikan (`lib/actions/settings.ts`):
+  - Karyawan baru: penempatan pertama mulai dari **Tanggal Bergabung** (kosong = hari disimpan).
+  - Edit karyawan: bila Tanggal Bergabung dimundurkan, penempatan pertama ikut mundur. Tidak pernah dimajukan, supaya absensi yang sudah tercatat tidak hilang dari roster.
+- UI:
+  - Field Tanggal Bergabung diberi hint "Absensi bisa diisi mulai tanggal ini".
+  - `color-scheme` field itu mengikuti tema.
+  - Pesan kosong di Absensi Harian (tanggal lampau) menjelaskan bahwa karyawan tampil mulai Tanggal Bergabung-nya.
+- Data lama: migrasi `supabase/migrations/20261020040000_assignment_from_join_date.sql` memundurkan penempatan pertama ke `join_date` untuk karyawan yang sudah tersimpan. Belum dijalankan.
+- Verifikasi: `tsc` + `eslint` lolos.
+
+---
+
+## 2026-10-20 — Kolom "Cabang Penempatan" di Manajemen Karyawan dirapikan
+
+- Feedback user: isi kolom cabang (pill `DKT001A · Dakota Pusat`) jelek. Penyebabnya, pill berupa span inline, sehingga nama panjang patah ke baris baru dan border-nya terpotong.
+- Kini blok 2 baris:
+  - ikon gudang cyan;
+  - **kode** (mono, tebal) di atas, dengan label "Nonaktif" bila cabangnya nonaktif;
+  - di bawahnya nama · tipe fasilitas, terpotong rapi (`truncate`, teks lengkap di tooltip), lebar maks. 240px.
+- "Belum ditempatkan" diberi ikon `location_off`.
+- Verifikasi: `tsc` + `eslint` lolos. Tiruan sel dengan kelas yang sama dicek di Browser pane (nama panjang terpotong rapi); halaman asli butuh login.
+
+---
+
+## 2026-10-20 — Kode cabang & NIK karyawan bebas format
+
+- Permintaan user: kode cabang dan kode karyawan tidak dibatasi format atau contoh isian; boleh diisi apa saja.
+- Aturan baru: wajib diisi, maks. 30 karakter (`CODE_MAX` di `lib/labels.ts`), dan tetap unik. Isinya bebas (huruf besar/kecil, angka, simbol, spasi).
+- Dihapus:
+  - Validasi pola `3 huruf + 3 angka + 1 huruf` (form & server).
+  - Validasi NIK `3–20 huruf/angka/strip`.
+  - Paksaan huruf besar.
+  - Hint "3 huruf + 3 angka + 1 huruf".
+  - Placeholder contoh ("Cth: BDO030A", "Contoh: EXP-0109").
+- Cek duplikat di form kini tidak membedakan huruf besar/kecil.
+- Lookup cabang di tool AI (`cari_absensi`, `daftar_karyawan`) dibuat tidak peka huruf besar/kecil, supaya kode huruf kecil tetap ketemu.
+- **Database**:
+  - Migrasi baru `supabase/migrations/20261020030000_free_format_codes.sql` menghapus check pola `branch_code_check` dan menggantinya dengan check panjang 1–30 untuk `branch.code` & `employee.nik`.
+  - **Wajib dijalankan** di SQL Editor; tanpa itu kode non-pola akan ditolak database.
+- Verifikasi: `tsc` + `eslint` lolos.
+
+---
+
+## 2026-10-20 — Pemisah judul tab browser pakai "|"
+
+- Permintaan user: judul tab tidak pakai em dash ("Dashboard — Absensi Ekspedisi"), tapi `|`.
+- Root layout kini memakai template judul `{ template: "%s | Absensi Ekspedisi", default: "Absensi Ekspedisi" }`. Ke-11 halaman (Dashboard, Absensi ×4, Laporan, Pengaturan ×4, Login) cukup menulis namanya sendiri, jadi format pemisah diatur di satu tempat.
+- Verifikasi: `tsc` lolos; tab login di Browser pane tampil "Masuk | Absensi Ekspedisi".
+
+---
+
 ## 2026-10-20 — Favicon pakai ikon login
 
 - Favicon default Next (`src/app/favicon.ico`) dihapus dan diganti `src/app/icon.svg`.

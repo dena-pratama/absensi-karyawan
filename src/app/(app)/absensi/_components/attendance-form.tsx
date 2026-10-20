@@ -348,9 +348,18 @@ export function AttendanceForm({
             {visible.length === 0 && (
               <tr>
                 <td colSpan={7} className="py-10 text-center text-gray-400">
-                  {rows.length === 0
-                    ? "Belum ada karyawan yang ditempatkan di cabang ini pada tanggal tersebut."
-                    : "Tidak ada karyawan yang cocok dengan filter."}
+                  {rows.length === 0 ? (
+                    <>
+                      Belum ada karyawan yang ditempatkan di cabang ini pada tanggal tersebut.
+                      {date < today && (
+                        <span className="block mt-1 text-[11px] text-gray-500">
+                          Karyawan tampil mulai Tanggal Bergabung-nya. Atur di Pengaturan → Manajemen Karyawan.
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    "Tidak ada karyawan yang cocok dengan filter."
+                  )}
                 </td>
               </tr>
             )}

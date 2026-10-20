@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Icon } from "@/components/icon";
 import { applyBranchChanges } from "@/lib/actions/settings";
 import type { BranchSetting, Option } from "@/lib/data/settings";
-import { BRANCH_TYPE_LABEL, type BranchType } from "@/lib/labels";
+import { BRANCH_TYPE_LABEL, CODE_MAX, type BranchType } from "@/lib/labels";
 import { newId, useStaged } from "../_components/staged";
 import {
   ApplyBar,
@@ -96,11 +96,11 @@ export function BranchManager({
 
   const saveForm = () => {
     if (!editing) return;
-    const b = { ...editing, code: editing.code.trim().toUpperCase(), name: editing.name.trim() };
-    if (!/^[A-Z]{3}[0-9]{3}[A-Z]$/.test(b.code)) return setFormError("Kode harus 3 huruf + 3 angka + 1 huruf, contoh BDO030A.");
+    const b = { ...editing, code: editing.code.trim(), name: editing.name.trim() };
+    if (!b.code) return setFormError("Kode cabang wajib diisi.");
     if (!b.name) return setFormError("Nama cabang wajib diisi.");
     if (!b.is24 && (!b.open || !b.close)) return setFormError("Isi jam buka & tutup gate, atau pilih 24 jam.");
-    if (staged.rows.some((r) => r.id !== b.id && r.code === b.code)) return setFormError(`Kode ${b.code} sudah dipakai.`);
+    if (staged.rows.some((r) => r.id !== b.id && r.code.toLowerCase() === b.code.toLowerCase())) return setFormError(`Kode ${b.code} sudah dipakai.`);
     staged.upsert(b);
     setEditing(null);
   };
@@ -156,7 +156,7 @@ export function BranchManager({
               resetPage();
             }}
             aria-label="Cari cabang"
-            placeholder="Cari kode cabang (cth: JKT109A) atau alamat..."
+            placeholder="Cari kode, nama cabang, atau alamat..."
             className={`${filterCls} w-full pl-9 pr-3 py-2 placeholder-gray-500`}
           />
         </div>
@@ -348,13 +348,12 @@ export function BranchManager({
         {editing && (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-              <Field label="Kode Cabang / Hub" hint="3 huruf + 3 angka + 1 huruf">
+              <Field label="Kode Cabang / Hub">
                 <input
-                  className={`${inputCls} font-mono uppercase`}
-                  placeholder="Cth: BDO030A"
+                  className={`${inputCls} font-mono`}
                   value={editing.code}
-                  maxLength={7}
-                  onChange={(e) => setEditing({ ...editing, code: e.target.value.toUpperCase() })}
+                  maxLength={CODE_MAX}
+                  onChange={(e) => setEditing({ ...editing, code: e.target.value })}
                   required
                 />
               </Field>

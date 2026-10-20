@@ -7,7 +7,7 @@ import { SettingsHeader } from "../_components/settings-header";
 import { SettingsSkeleton } from "../_components/settings-skeleton";
 import { ConnectorManager } from "./connector-manager";
 
-export const metadata: Metadata = { title: "Konektor AI — Absensi Ekspedisi" };
+export const metadata: Metadata = { title: "Konektor AI" };
 
 export default function KonektorAiPage() {
   return (

@@ -8,7 +8,7 @@ import { formatDateLong, formatTimeWIB, initials, todayWIB } from "@/lib/format"
 import { ATTENDANCE_LABEL, BRANCH_TYPE_LABEL } from "@/lib/labels";
 import { BranchCarousel, type BranchCard } from "./_components/branch-carousel";
 
-export const metadata: Metadata = { title: "Dashboard — Absensi Ekspedisi" };
+export const metadata: Metadata = { title: "Dashboard" };
 
 const TABS = [
   { label: "Overview Hub", href: "/", active: true },

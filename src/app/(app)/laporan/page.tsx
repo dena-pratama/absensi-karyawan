@@ -9,7 +9,7 @@ import { ATTENDANCE_LABEL, type AttendanceStatus } from "@/lib/labels";
 import { parseReportFilters, reportQuery } from "@/lib/report-filters";
 import { ReportFilter } from "./report-filter";
 
-export const metadata: Metadata = { title: "Laporan Absensi — Absensi Ekspedisi" };
+export const metadata: Metadata = { title: "Laporan Absensi" };
 
 const PREVIEW_ROWS = 50;
 

@@ -139,7 +139,7 @@ export function createToolExecutor(today: string) {
         case "cari_absensi": {
           const options = await getReportOptions();
           const code = str(args.kode_cabang).toUpperCase();
-          const branch = code ? options.branches.find((b) => b.label.startsWith(`${code} -`)) : undefined;
+          const branch = code ? options.branches.find((b) => b.label.toUpperCase().startsWith(`${code} -`)) : undefined;
           if (code && !branch) return json({ error: `Cabang ${code} tidak ditemukan.` });
           const nik = str(args.nik).toUpperCase();
           const employee = nik ? options.employees.find((e) => e.label.toUpperCase().endsWith(`(${nik})`)) : undefined;
@@ -185,7 +185,7 @@ export function createToolExecutor(today: string) {
           const q = str(args.cari).toLowerCase();
           return json(
             employees
-              .filter((e) => !code || branchCode.get(e.branchId) === code)
+              .filter((e) => !code || branchCode.get(e.branchId)?.toUpperCase() === code)
               .filter((e) => !q || e.name.toLowerCase().includes(q) || e.nik.toLowerCase().includes(q))
               .slice(0, 300)
               .map((e) => ({

@@ -7,7 +7,7 @@ import { Icon } from "@/components/icon";
 import { applyEmployeeChanges } from "@/lib/actions/settings";
 import type { BranchSetting, EmployeeSetting, RoleSetting } from "@/lib/data/settings";
 import { initials } from "@/lib/format";
-import { BRANCH_TYPE_LABEL } from "@/lib/labels";
+import { BRANCH_TYPE_LABEL, CODE_MAX } from "@/lib/labels";
 import { StatCard } from "./_components/settings-skeleton";
 import { newId, useStaged } from "./_components/staged";
 import {
@@ -111,11 +111,11 @@ export function EmployeeManager({
 
   const saveForm = () => {
     if (!editing) return;
-    const e = { ...editing, nik: editing.nik.trim().toUpperCase(), name: editing.name.trim(), phone: normalizePhone(editing.phone) };
+    const e = { ...editing, nik: editing.nik.trim(), name: editing.name.trim(), phone: normalizePhone(editing.phone) };
     if (!e.nik || !e.name) return setFormError("NIK dan nama lengkap wajib diisi.");
     if (e.phone && !/^[0-9]{9,12}$/.test(e.phone)) return setFormError("No. WhatsApp harus 9–12 digit setelah +62.");
     if (!e.branchId || !e.roleId) return setFormError("Pilih cabang dan jabatan.");
-    if (staged.rows.some((r) => r.id !== e.id && r.nik === e.nik)) return setFormError(`NIK ${e.nik} sudah dipakai.`);
+    if (staged.rows.some((r) => r.id !== e.id && r.nik.toLowerCase() === e.nik.toLowerCase())) return setFormError(`NIK ${e.nik} sudah dipakai.`);
     staged.upsert(e);
     setEditing(null);
   };
@@ -261,11 +261,27 @@ export function EmployeeManager({
                       </td>
                       <td className="py-3 px-4">
                         {b ? (
-                          <span className="px-2 py-0.5 rounded border border-line-strong bg-panel-raised text-gray-200">
-                            {b.code} <span className="text-gray-400">· {b.name}</span>
-                          </span>
+                          <div className="flex items-center gap-2.5 min-w-0 max-w-[240px]">
+                            <span className="w-7 h-7 rounded-lg bg-cyan-500/10 text-brand-ink flex items-center justify-center flex-shrink-0">
+                              <Icon name="warehouse" className="text-[16px]" />
+                            </span>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-mono font-semibold text-gray-200 truncate">{b.code}</span>
+                                {!b.active && (
+                                  <span className="text-[9px] px-1.5 py-px rounded bg-panel-raised text-gray-400 flex-shrink-0">Nonaktif</span>
+                                )}
+                              </div>
+                              <div className="text-[10px] text-gray-400 truncate" title={`${b.name} · ${BRANCH_TYPE_LABEL[b.type]}`}>
+                                {b.name} · {BRANCH_TYPE_LABEL[b.type]}
+                              </div>
+                            </div>
+                          </div>
                         ) : (
-                          <span className="text-gray-500">Belum ditempatkan</span>
+                          <span className="inline-flex items-center gap-1.5 text-gray-500">
+                            <Icon name="location_off" className="text-[15px]" />
+                            Belum ditempatkan
+                          </span>
                         )}
                       </td>
                       <td className="py-3 px-4">
@@ -394,10 +410,9 @@ export function EmployeeManager({
               <Field label="NIK / ID Karyawan">
                 <input
                   className={`${inputCls} font-mono`}
-                  placeholder="Contoh: EXP-0109"
                   value={editing.nik}
                   onChange={(e) => setEditing({ ...editing, nik: e.target.value })}
-                  maxLength={20}
+                  maxLength={CODE_MAX}
                   required
                 />
               </Field>
@@ -456,10 +471,10 @@ export function EmployeeManager({
                   />
                 </span>
               </Field>
-              <Field label="Tanggal Bergabung">
+              <Field label="Tanggal Bergabung" hint="Absensi bisa diisi mulai tanggal ini (kosong = mulai hari disimpan).">
                 <input
                   type="date"
-                  className={`${inputCls} [color-scheme:dark]`}
+                  className={`${inputCls} [color-scheme:dark] light:[color-scheme:light]`}
                   value={editing.joinDate}
                   onChange={(e) => setEditing({ ...editing, joinDate: e.target.value })}
                 />

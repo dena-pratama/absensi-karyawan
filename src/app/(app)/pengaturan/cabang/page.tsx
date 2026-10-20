@@ -13,7 +13,7 @@ import { SettingsHeader } from "../_components/settings-header";
 import { SettingsSkeleton } from "../_components/settings-skeleton";
 import { BranchManager, type AuditView } from "./branch-manager";
 
-export const metadata: Metadata = { title: "Manajemen Cabang — Absensi Ekspedisi" };
+export const metadata: Metadata = { title: "Manajemen Cabang" };
 
 export default function PengaturanCabangPage() {
   return (
