@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { DateInput } from "@/components/date-input";
 import { Icon } from "@/components/icon";
 import { applyEmployeeChanges } from "@/lib/actions/settings";
 import type { BranchSetting, EmployeeSetting, RoleSetting } from "@/lib/data/settings";
@@ -472,9 +473,8 @@ export function EmployeeManager({
                 </span>
               </Field>
               <Field label="Tanggal Bergabung" hint="Absensi bisa diisi mulai tanggal ini (kosong = mulai hari disimpan).">
-                <input
-                  type="date"
-                  className={`${inputCls} [color-scheme:dark] light:[color-scheme:light]`}
+                <DateInput
+                  className={inputCls}
                   value={editing.joinDate}
                   onChange={(e) => setEditing({ ...editing, joinDate: e.target.value })}
                 />

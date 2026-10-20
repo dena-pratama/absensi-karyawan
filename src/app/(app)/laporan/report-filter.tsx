@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { DateInput } from "@/components/date-input";
 import { Icon } from "@/components/icon";
 import type { ReportOptions } from "@/lib/data/report";
 import { reportQuery, type ReportFilters } from "@/lib/report-filters";
@@ -77,9 +78,8 @@ export function ReportFilter({
         </label>
         <label>
           <Label>Dari Tanggal</Label>
-          <input
-            type="date"
-            className={`${control} [color-scheme:dark]`}
+          <DateInput
+            className={control}
             value={f.from}
             max={f.to}
             onChange={(e) => e.target.value && setF({ ...f, from: e.target.value })}
@@ -87,9 +87,8 @@ export function ReportFilter({
         </label>
         <label>
           <Label>Sampai Tanggal</Label>
-          <input
-            type="date"
-            className={`${control} [color-scheme:dark]`}
+          <DateInput
+            className={control}
             value={f.to}
             min={f.from}
             max={today}

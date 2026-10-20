@@ -5,6 +5,25 @@ Format: entri terbaru di paling atas.
 
 ---
 
+## 2026-10-20 — Deploy Vercel + domain, dan fix pemilih tanggal Laporan
+
+**Deploy**
+- App di-deploy ke Vercel lewat import repo GitHub. Env diisi manual oleh user; integrasi Supabase dari Vercel tidak dipakai.
+- Domain `denaprojects.web.id` (DomaiNesia):
+  - Awalnya "Invalid Configuration" karena nameserver DomaiNesia menolak query (zona DNS belum aktif).
+  - Setelah DNS Management aktif: `www` CNAME ke Vercel, dan `@` A record ke `216.198.79.1`.
+  - Dicek: `https://www.denaprojects.web.id/login` → 200 lewat HTTPS.
+
+**Pemilih tanggal**
+- Laporan "Dari / Sampai Tanggal" tidak bisa dipilih: sama seperti Absensi Harian sebelumnya, `[color-scheme:dark]` di-hardcode sehingga ikon kalender tidak terlihat di light mode.
+- Komponen bersama baru `components/date-input.tsx`:
+  - `DateInput`: ikon kalender sendiri yang selalu terlihat, klik di mana pun pada field membuka kalender, dan `color-scheme` mengikuti tema;
+  - `openDatePicker()`: membuka kalender dengan fallback untuk browser lama.
+- Dipakai di Laporan (2 field) dan Tanggal Bergabung karyawan. Absensi Harian memakai `openDatePicker()` yang sama.
+- Verifikasi: `tsc` + `eslint` lolos.
+
+---
+
 ## 2026-10-20 — README diperbarui
 
 - `README.md` ditulis ulang agar lebih profesional dan lengkap:

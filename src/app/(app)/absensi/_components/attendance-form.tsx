@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { openDatePicker } from "@/components/date-input";
 import { Icon } from "@/components/icon";
 import { saveAttendance, type AttendanceChange } from "@/lib/actions/attendance";
 import { initials, shiftDay } from "@/lib/format";
@@ -70,13 +71,7 @@ export function AttendanceForm({
   const [navigating, startNavigating] = useTransition();
   const dateRef = useRef<HTMLInputElement>(null);
 
-  const openPicker = () => {
-    try {
-      dateRef.current?.showPicker();
-    } catch {
-      dateRef.current?.focus(); // browser lama tanpa showPicker()
-    }
-  };
+  const openPicker = () => openDatePicker(dateRef.current);
 
   // Data baru dari server (ganti tanggal / setelah simpan) → reset form.
   const [prevInitial, setPrevInitial] = useState(initial);
