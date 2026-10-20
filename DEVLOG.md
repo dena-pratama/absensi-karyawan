@@ -5,6 +5,15 @@ Format: entri terbaru di paling atas.
 
 ---
 
+## 2026-10-20 — "Lihat Detail" kartu cabang membuka Daftar Karyawan
+
+- Permintaan user: tombol "Lihat Detail" di kartu cabang Dashboard langsung menuju Daftar Karyawan cabang itu. Sebelumnya tombol ini hanya mengganti cabang aktif dan tetap di Dashboard.
+- Server action baru `openBranchEmployees(branchId)` di `lib/actions/branch.ts`: set cookie cabang aktif lalu `redirect("/absensi/karyawan")`. Daftar Karyawan membaca cabang aktif, jadi yang tampil adalah karyawan cabang tersebut.
+- `setActiveBranch` tetap dipakai pemilih cabang di topbar.
+- Verifikasi: `tsc` + `eslint` lolos.
+
+---
+
 ## 2026-10-20 — Deploy Vercel + domain, dan fix pemilih tanggal Laporan
 
 **Deploy**

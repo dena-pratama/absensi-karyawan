@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { setActiveBranch } from "@/lib/actions/branch";
+import { openBranchEmployees } from "@/lib/actions/branch";
 
 export type BranchCard = {
   id: string;
@@ -117,7 +117,7 @@ export function BranchCarousel({ cards }: { cards: BranchCard[] }) {
               <button
                 type="button"
                 disabled={pending}
-                onClick={() => startTransition(() => setActiveBranch(card.id))}
+                onClick={() => startTransition(() => openBranchEmployees(card.id))}
                 className={`${p.btn} text-[11px] font-bold py-1.5 px-3 rounded-lg border border-black/15 transition disabled:opacity-60`}
               >
                 Lihat Detail
