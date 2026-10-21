@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { Icon } from "@/components/icon";
+import { Toast } from "@/components/toast";
 import { login, type LoginState } from "./actions";
 
 const initialState: LoginState = { error: null, login: "" };
@@ -113,17 +114,7 @@ export function LoginForm() {
         </button>
       </form>
 
-      {/* Toast */}
-      <div
-        role="status"
-        aria-live="polite"
-        className={`fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2.5 rounded-lg bg-surface-container-high text-on-surface shadow-2xl flex items-center gap-2.5 transition-all duration-300 z-50 ${
-          toast ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2 pointer-events-none"
-        }`}
-      >
-        <Icon name="error" className="text-[18px] text-error" />
-        <span className="text-body-sm">{toast}</span>
-      </div>
+      <Toast toast={toast ? { text: toast, error: true } : null} position="bottom-6" />
     </>
   );
 }

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ViewTransition } from "react";
 
 /**
  * Penempatan grid untuk isi halaman di dalam AppShell.
@@ -23,22 +24,24 @@ export function PageHeader({
   below?: React.ReactNode;
 }) {
   return (
-    <div className="md:row-start-2 md:col-start-2 flex flex-col min-w-0">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-medium text-gray-400">
-            {/* Crumb yang ternyata kosong (mis. belum ada cabang) disembunyikan beserta pemisahnya */}
-            {crumb && (
-              <span className="empty:hidden after:content-['>'] after:ml-2 after:text-gray-600">{crumb}</span>
-            )}
-            <span className="text-cyan-400 font-semibold">{current}</span>
+    <PageTransition>
+      <div className="md:row-start-2 md:col-start-2 flex flex-col min-w-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-medium text-gray-400">
+              {/* Crumb yang ternyata kosong (mis. belum ada cabang) disembunyikan beserta pemisahnya */}
+              {crumb && (
+                <span className="empty:hidden after:content-['>'] after:ml-2 after:text-gray-600">{crumb}</span>
+              )}
+              <span className="text-cyan-400 font-semibold">{current}</span>
+            </div>
+            <h1 className="text-xl font-bold text-ink tracking-tight mt-0.5">{title}</h1>
           </div>
-          <h1 className="text-xl font-bold text-ink tracking-tight mt-0.5">{title}</h1>
+          {actions}
         </div>
-        {actions}
+        {below}
       </div>
-      {below}
-    </div>
+    </PageTransition>
   );
 }
 
@@ -49,13 +52,42 @@ export function PageHeader({
 export const underlineTabsNavClass =
   "flex items-center gap-6 sm:gap-8 mt-5 text-sm overflow-x-auto shadow-[inset_0_-1px_0_var(--color-line)]";
 
-/** Kelas satu tab: indikator 2px membulat menimpa garis pemisah; glow tipis hanya di dark mode. */
+/** Kelas satu tab. Tab aktif memakai <TabIndicator>; tab lain menampilkan garis tipis saat hover. */
 export function underlineTabClass(active: boolean) {
-  return `relative pb-3 whitespace-nowrap transition-colors after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:rounded-full after:transition-colors ${
+  return `relative pb-3 whitespace-nowrap transition-colors ${
     active
-      ? "text-brand-ink font-semibold after:bg-brand after:shadow-[0_0_8px_rgba(0,210,255,0.55)] light:after:shadow-none"
-      : "text-gray-400 hover:text-gray-200 font-medium after:bg-transparent hover:after:bg-line-strong"
+      ? "text-brand-ink font-semibold"
+      : "text-gray-400 hover:text-gray-200 font-medium after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:rounded-full after:transition-colors after:bg-transparent hover:after:bg-line-strong"
   }`;
+}
+
+/**
+ * Garis 2px di bawah tab aktif (menimpa garis pemisah; glow tipis hanya di dark mode).
+ * Nama view transition yang sama per grup tab → saat pindah tab, browser menggeser garis
+ * dari tab lama ke tab baru (bukan lompat). `group` memisahkan menu Absensi & Pengaturan.
+ */
+export function TabIndicator({ group }: { group: string }) {
+  return (
+    <ViewTransition name={`tab-indicator-${group}`} share="tab-indicator" default="none">
+      <span
+        aria-hidden="true"
+        className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-brand shadow-[0_0_8px_rgba(0,210,255,0.55)] light:shadow-none"
+      />
+    </ViewTransition>
+  );
+}
+
+/**
+ * Isi halaman (judul / body) memudar + naik sedikit saat pindah halaman.
+ * Ditaruh di komponen halaman, bukan layout: layout tetap terpasang antar navigasi,
+ * jadi topbar & sidebar diam. default="none": tidak ikut animasi lain (mis. Suspense).
+ */
+function PageTransition({ children }: { children: React.ReactNode }) {
+  return (
+    <ViewTransition enter="page-enter" exit="page-exit" default="none">
+      {children}
+    </ViewTransition>
+  );
 }
 
 /** Tab bergaris bawah (gaya halaman Absensi: Daftar Karyawan / Absensi Harian / Rekap Bulanan). */
@@ -73,6 +105,7 @@ export function UnderlineTabs({ items }: { items: { label: string; href: string;
           className={underlineTabClass(!!t.active)}
         >
           {t.label}
+          {t.active && <TabIndicator group="absensi" />}
         </Link>
       ))}
     </nav>
@@ -81,7 +114,9 @@ export function UnderlineTabs({ items }: { items: { label: string; href: string;
 
 export function PageBody({ children }: { children: React.ReactNode }) {
   return (
-    <main className="md:row-start-3 md:col-start-2 flex flex-col gap-7 min-w-0">{children}</main>
+    <PageTransition>
+      <main className="md:row-start-3 md:col-start-2 flex flex-col gap-7 min-w-0">{children}</main>
+    </PageTransition>
   );
 }
 

@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
+import { AnimatePresence, m } from "motion/react";
 import { Icon } from "@/components/icon";
+import { POP } from "@/components/motion";
 import { PopupLayer } from "@/components/popup-overlay";
 import type { CheckPoint } from "@/lib/data/check";
 
@@ -66,13 +68,19 @@ export function PhotoViewer({ view, onClose }: { view: PhotoView | null; onClose
     return () => window.removeEventListener("keydown", onKey);
   }, [view, onClose]);
 
-  if (!view) return null;
+  return (
+    <AnimatePresence>{view && <PhotoDialog key={`${view.nik}-${view.kind}`} view={view} onClose={onClose} />}</AnimatePresence>
+  );
+}
+
+function PhotoDialog({ view, onClose }: { view: PhotoView; onClose: () => void }) {
   const { point } = view;
   const mapUrl = point.lat != null && point.lng != null ? `https://www.google.com/maps?q=${point.lat},${point.lng}` : null;
 
   return (
     <PopupLayer onClose={onClose}>
-      <div
+      <m.div
+        {...POP}
         role="dialog"
         aria-modal="true"
         aria-label={`Foto ${KIND_LABEL[view.kind]} ${view.name}`}
@@ -116,7 +124,7 @@ export function PhotoViewer({ view, onClose }: { view: PhotoView | null; onClose
             </a>
           </div>
         )}
-      </div>
+      </m.div>
     </PopupLayer>
   );
 }

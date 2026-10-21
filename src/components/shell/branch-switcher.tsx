@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, useTransition } from "react";
+import { AnimatePresence, m } from "motion/react";
 import { Icon } from "@/components/icon";
+import { DROP } from "@/components/motion";
+import { useDismiss } from "@/components/use-dismiss";
 import { setActiveBranch } from "@/lib/actions/branch";
 import type { BranchSummary } from "@/lib/data/shell";
 import { BRANCH_TYPE_LABEL } from "@/lib/labels";
@@ -30,19 +33,9 @@ export function BranchSwitcher({
   const searchRef = useRef<HTMLInputElement>(null);
   const listId = useId();
 
+  useDismiss(open, rootRef, () => setOpen(false));
   useEffect(() => {
-    if (!open) return;
-    const onPointer = (e: PointerEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    document.addEventListener("pointerdown", onPointer);
-    document.addEventListener("keydown", onKey);
-    searchRef.current?.focus();
-    return () => {
-      document.removeEventListener("pointerdown", onPointer);
-      document.removeEventListener("keydown", onKey);
-    };
+    if (open) searchRef.current?.focus();
   }, [open]);
 
   if (branches.length === 0) {
@@ -89,50 +82,52 @@ export function BranchSwitcher({
         )}
       </button>
 
-      {open && (
-        <div className="absolute left-0 top-full mt-2 z-50 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-line-strong bg-panel shadow-2xl shadow-black/40 overflow-hidden">
-          {branches.length > 6 && (
-            <div className="p-2 border-b border-line">
-              <div className="relative">
-                <Icon name="search" className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[16px] text-gray-500" />
-                <input
-                  ref={searchRef}
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Cari kode / nama cabang..."
-                  className="w-full bg-panel-inset border border-line rounded-lg text-xs text-gray-200 placeholder-gray-500 pl-8 pr-3 py-1.5 focus:outline-none focus:border-cyan-400"
-                />
+      <AnimatePresence>
+        {open && (
+          <m.div {...DROP} className="absolute left-0 top-full mt-2 z-50 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-line-strong bg-panel shadow-2xl shadow-black/40 overflow-hidden">
+            {branches.length > 6 && (
+              <div className="p-2 border-b border-line">
+                <div className="relative">
+                  <Icon name="search" className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[16px] text-gray-500" />
+                  <input
+                    ref={searchRef}
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Cari kode / nama cabang..."
+                    className="w-full bg-panel-inset border border-line rounded-lg text-xs text-gray-200 placeholder-gray-500 pl-8 pr-3 py-1.5 focus:outline-none focus:border-cyan-400"
+                  />
+                </div>
               </div>
-            </div>
-          )}
-          <ul id={listId} role="listbox" aria-label="Daftar cabang" className="max-h-72 overflow-y-auto p-1.5">
-            {shown.map((b) => {
-              const selected = b.id === activeId;
-              return (
-                <li key={b.id} role="option" aria-selected={selected}>
-                  <button
-                    type="button"
-                    onClick={() => choose(b.id)}
-                    className={`w-full flex items-center gap-3 rounded-lg px-2.5 py-2 text-left transition-colors ${
-                      selected ? "bg-cyan-500/10" : "hover:bg-panel-raised"
-                    }`}
-                  >
-                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_DOT[b.status]}`} title={b.status} />
-                    <span className="min-w-0 flex-1">
-                      <span className={`block text-xs font-semibold truncate ${selected ? "text-brand-ink" : "text-gray-200"}`}>
-                        {b.code} <span className="font-normal text-gray-400">· {b.name}</span>
+            )}
+            <ul id={listId} role="listbox" aria-label="Daftar cabang" className="max-h-72 overflow-y-auto p-1.5">
+              {shown.map((b) => {
+                const selected = b.id === activeId;
+                return (
+                  <li key={b.id} role="option" aria-selected={selected}>
+                    <button
+                      type="button"
+                      onClick={() => choose(b.id)}
+                      className={`w-full flex items-center gap-3 rounded-lg px-2.5 py-2 text-left transition-colors ${
+                        selected ? "bg-cyan-500/10" : "hover:bg-panel-raised"
+                      }`}
+                    >
+                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_DOT[b.status]}`} title={b.status} />
+                      <span className="min-w-0 flex-1">
+                        <span className={`block text-xs font-semibold truncate ${selected ? "text-brand-ink" : "text-gray-200"}`}>
+                          {b.code} <span className="font-normal text-gray-400">· {b.name}</span>
+                        </span>
+                        <span className="block text-[10px] text-gray-500 mt-0.5">{BRANCH_TYPE_LABEL[b.branch_type]}</span>
                       </span>
-                      <span className="block text-[10px] text-gray-500 mt-0.5">{BRANCH_TYPE_LABEL[b.branch_type]}</span>
-                    </span>
-                    {selected && <Icon name="check" className="text-[16px] text-brand-ink" />}
-                  </button>
-                </li>
-              );
-            })}
-            {shown.length === 0 && <li className="px-2.5 py-3 text-xs text-gray-500 text-center">Cabang tidak ditemukan</li>}
-          </ul>
-        </div>
-      )}
+                      {selected && <Icon name="check" className="text-[16px] text-brand-ink" />}
+                    </button>
+                  </li>
+                );
+              })}
+              {shown.length === 0 && <li className="px-2.5 py-3 text-xs text-gray-500 text-center">Cabang tidak ditemukan</li>}
+            </ul>
+          </m.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

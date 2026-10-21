@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { MotionProvider } from "@/components/motion";
 import { THEME_STORAGE_KEY } from "@/lib/theme";
 
 const inter = Inter({
@@ -30,7 +31,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         />
       </head>
       <body className="min-h-full flex flex-col font-sans text-body-md selection:bg-primary-container selection:text-on-primary-fixed">
-        {children}
+        <MotionProvider>{children}</MotionProvider>
       </body>
     </html>
   );

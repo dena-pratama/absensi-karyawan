@@ -168,7 +168,7 @@ function Preview({ data, qs }: { data: ReportData; qs: string }) {
               </h3>
               <span className="text-[11px] text-gray-400">
                 {data.rows.length > PREVIEW_ROWS
-                  ? `Pratinjau ${PREVIEW_ROWS} dari ${data.rows.length} baris — unduh CSV/PDF untuk data lengkap`
+                  ? `Pratinjau ${PREVIEW_ROWS} dari ${data.rows.length} baris. Unduh CSV/PDF untuk data lengkap.`
                   : `${data.rows.length} baris`}
               </span>
             </div>

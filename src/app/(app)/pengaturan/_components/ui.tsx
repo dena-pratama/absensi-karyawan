@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useEffectEvent, useRef } from "react";
+import { AnimatePresence, m } from "motion/react";
 import { Icon } from "@/components/icon";
-import { BodyPortal, PopupLayer } from "@/components/popup-overlay";
+import { POP } from "@/components/motion";
+import { PopupLayer } from "@/components/popup-overlay";
 
 /* Gaya input mengikuti modal "Tambah Entitas Baru" di desain. */
 export const inputCls =
@@ -90,67 +92,70 @@ export function Modal({
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
-  if (!open) return null;
-
   return (
-    <PopupLayer onClose={onClose} className="sm:p-6 overflow-y-auto">
-      <div
-        ref={ref}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="modal-title"
-        className="relative bg-panel-inset border border-line-strong w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col z-10 my-auto"
-      >
-        <div className="px-6 py-4 border-b border-line-strong bg-panel-inset flex items-center justify-between gap-3">
-          <div>
-            <h3 id="modal-title" className="text-base font-bold text-ink flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#00e5ff]" />
-              {title}
-            </h3>
-            {description && <p className="text-xs text-slate-400 mt-0.5">{description}</p>}
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Tutup"
-            className="p-1.5 rounded-lg text-slate-400 hover:text-ink hover:bg-panel-inset transition"
+    <AnimatePresence>
+      {open && (
+        <PopupLayer key="modal" onClose={onClose} className="sm:p-6 overflow-y-auto">
+          <m.div
+            {...POP}
+            ref={ref}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modal-title"
+            className="relative bg-panel-inset border border-line-strong w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col z-10 my-auto"
           >
-            <Icon name="close" className="text-[20px]" />
-          </button>
-        </div>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            onSubmit();
-          }}
-        >
-          <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-            {children}
-            {error && (
-              <p role="alert" className="text-xs text-rose-300 bg-rose-950/30 border border-rose-500/30 rounded-lg px-3 py-2">
-                {error}
-              </p>
-            )}
-          </div>
-          <div className="px-6 py-4 border-t border-line-strong bg-panel-inset flex items-center justify-between">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded-lg border border-line-strong text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-panel-inset transition"
+            <div className="px-6 py-4 border-b border-line-strong bg-panel-inset flex items-center justify-between gap-3">
+              <div>
+                <h3 id="modal-title" className="text-base font-bold text-ink flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#00e5ff]" />
+                  {title}
+                </h3>
+                {description && <p className="text-xs text-slate-400 mt-0.5">{description}</p>}
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Tutup"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-ink hover:bg-panel-inset transition"
+              >
+                <Icon name="close" className="text-[20px]" />
+              </button>
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                onSubmit();
+              }}
             >
-              Batal
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold rounded-lg text-xs transition shadow-md shadow-cyan-400/25 flex items-center gap-1.5"
-            >
-              <Icon name="check" className="text-[15px]" />
-              {submitLabel}
-            </button>
-          </div>
-        </form>
-      </div>
-    </PopupLayer>
+              <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                {children}
+                {error && (
+                  <p role="alert" className="text-xs text-rose-300 bg-rose-950/30 border border-rose-500/30 rounded-lg px-3 py-2">
+                    {error}
+                  </p>
+                )}
+              </div>
+              <div className="px-6 py-4 border-t border-line-strong bg-panel-inset flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 rounded-lg border border-line-strong text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-panel-inset transition"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold rounded-lg text-xs transition shadow-md shadow-cyan-400/25 flex items-center gap-1.5"
+                >
+                  <Icon name="check" className="text-[15px]" />
+                  {submitLabel}
+                </button>
+              </div>
+            </form>
+          </m.div>
+        </PopupLayer>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -202,25 +207,7 @@ export function ApplyBar({
   );
 }
 
-export function Toast({ toast }: { toast: { text: string; error: boolean } | null }) {
-  return (
-    <BodyPortal>
-      <div
-        role="status"
-        aria-live="polite"
-        className={`fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 px-4 py-2.5 rounded-lg bg-panel-raised text-gray-100 shadow-2xl flex items-center gap-2.5 transition-all duration-300 z-[60] text-xs max-w-[90vw] ${
-          toast ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2 pointer-events-none"
-        }`}
-      >
-        <Icon
-          name={toast?.error ? "error" : "check_circle"}
-          className={`text-[18px] ${toast?.error ? "text-rose-400" : "text-emerald-400"}`}
-        />
-        {toast?.text}
-      </div>
-    </BodyPortal>
-  );
-}
+export { Toast } from "@/components/toast";
 
 /** Badge "Baru" / "Diubah" pada baris yang belum diterapkan. */
 export function ChangeBadge({ isNew, changed }: { isNew: boolean; changed: boolean }) {

@@ -97,7 +97,7 @@ export function GeoAreaField({
       (pos) => {
         setLocating(false);
         setPoint({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        if (pos.coords.accuracy > 50) setError(`Akurasi lokasi ±${Math.round(pos.coords.accuracy)} m — periksa titiknya di peta.`);
+        if (pos.coords.accuracy > 50) setError(`Akurasi lokasi ±${Math.round(pos.coords.accuracy)} m. Periksa titiknya di peta.`);
       },
       (err) => {
         setLocating(false);
@@ -241,7 +241,7 @@ export function GeoAreaField({
       ) : (
         <p className="text-[11px] text-gray-500 flex items-center gap-1.5">
           <Icon name="location_off" className="text-[15px]" />
-          Titik belum diatur — karyawan cabang ini belum bisa absen lewat app mobile.
+          Titik belum diatur, jadi karyawan cabang ini belum bisa absen lewat app mobile.
         </p>
       )}
     </fieldset>

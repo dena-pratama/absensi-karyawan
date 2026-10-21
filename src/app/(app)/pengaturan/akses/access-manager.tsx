@@ -29,13 +29,13 @@ const ROLE_STYLE: Record<AppRole | "", string> = {
 /** Ringkasan hak akses per role — mengikuti policy di migrasi role_based_rls. */
 const MATRIX: { area: string; admin: string; spv: string; karyawan: string }[] = [
   { area: "Panel web: Dashboard & Absensi", admin: "Lihat & ubah", spv: "Lihat saja, cabang-cabangnya", karyawan: "Lihat saja, dirinya" },
-  { area: "Panel web: Laporan & Pengaturan", admin: "Penuh", spv: "—", karyawan: "—" },
+  { area: "Panel web: Laporan & Pengaturan", admin: "Penuh", spv: "-", karyawan: "-" },
   { area: "Data karyawan & penempatan", admin: "Baca & ubah", spv: "Baca, cabang-cabangnya", karyawan: "Baca, dirinya" },
   { area: "Data cabang", admin: "Baca & ubah", spv: "Baca, cabang-cabangnya", karyawan: "Baca, cabang-cabangnya" },
   { area: "Absensi harian (app mobile)", admin: "Baca & ubah", spv: "Isi/ubah cabang-cabangnya (s/d hari ini)", karyawan: "Isi/ubah miliknya, hari ini" },
   { area: "Penugasan backup karyawan", admin: "Buat & ubah (web)", spv: "Buat & ubah (app), cabang-cabangnya", karyawan: "Lihat miliknya" },
   { area: "Master jabatan & cluster", admin: "Baca & ubah", spv: "Baca", karyawan: "Baca" },
-  { area: "Log perubahan, konektor AI, hak akses", admin: "Penuh", spv: "—", karyawan: "—" },
+  { area: "Log perubahan, konektor AI, hak akses", admin: "Penuh", spv: "-", karyawan: "-" },
 ];
 
 export function AccessManager({
@@ -142,7 +142,7 @@ export function AccessManager({
           <p className="font-semibold">RLS berbasis role belum aktif.</p>
           <p>
             Jalankan <code className="font-mono">supabase/migrations/20261021000000_role_based_rls.sql</code> di SQL Editor Supabase, lalu muat
-            ulang halaman. Sampai migrasi dijalankan, setiap akun yang login masih punya akses penuh — jangan buat akun lain dulu.
+            ulang halaman. Sampai migrasi dijalankan, setiap akun yang login masih punya akses penuh, jadi jangan buat akun lain dulu.
           </p>
         </div>
       </div>
@@ -272,7 +272,7 @@ export function AccessManager({
                       )}
                       {r.role === "karyawan" && (
                         <SelectBox value={r.employeeId} onChange={(e) => staged.patch(r.id, { employeeId: e.target.value })} aria-label="Data karyawan">
-                          <option value="">— Pilih karyawan —</option>
+                          <option value="">Pilih karyawan…</option>
                           {employees.map((e) => (
                             <option key={e.id} value={e.id} disabled={takenEmployee.has(e.id) && takenEmployee.get(e.id) !== r.id}>
                               {e.label}
@@ -329,7 +329,7 @@ export function AccessManager({
                 <tr key={m.area}>
                   <td className="py-2.5 px-5 text-gray-200">{m.area}</td>
                   {[m.admin, m.spv, m.karyawan].map((v, i) => (
-                    <td key={i} className={`py-2.5 px-4 ${v === "—" ? "text-gray-600" : "text-gray-300"}`}>
+                    <td key={i} className={`py-2.5 px-4 ${v === "-" ? "text-gray-600" : "text-gray-300"}`}>
                       {v}
                     </td>
                   ))}
@@ -414,7 +414,7 @@ export function AccessManager({
                     }}
                     required
                   >
-                    <option value="">— Pilih karyawan —</option>
+                    <option value="">Pilih karyawan…</option>
                     {employees.map((e) => (
                       <option key={e.id} value={e.id} disabled={takenEmployee.has(e.id)}>
                         {e.label}

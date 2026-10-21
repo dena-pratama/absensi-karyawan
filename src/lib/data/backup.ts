@@ -55,18 +55,29 @@ export async function getBackups(opts: { from?: string; to?: string; branchId?: 
     if (error.code === "PGRST205" || error.code === "42P01") return { ready: false, rows: [] };
     throw new Error(`Gagal memuat penugasan backup: ${error.message}`);
   }
+  const raw = (data ?? []) as unknown as Row[];
+
+  // SPV tidak bisa membaca cabang di luar cabangnya, jadi kode cabang lawan (asal / tujuan)
+  // bisa kosong — ambil dari backup_branch_options() (khusus admin & SPV, hanya id/kode/nama).
+  const missing = raw.some((r) => !r.to_branch || (r.from_branch_id && !r.from_branch));
+  const extra = new Map<string, { code: string; name: string }>();
+  if (missing) {
+    const { data: opts } = await supabase.rpc("backup_branch_options");
+    for (const o of (opts ?? []) as { id: string; code: string; name: string }[]) extra.set(o.id, o);
+  }
+
   return {
     ready: true,
-    rows: ((data ?? []) as unknown as Row[]).map((r) => ({
+    rows: raw.map((r) => ({
       id: r.id,
       employeeId: r.employee_id,
       nik: r.employee?.nik ?? "-",
       name: r.employee?.full_name ?? "-",
       fromBranchId: r.from_branch_id ?? "",
-      fromCode: r.from_branch?.code ?? "-",
+      fromCode: r.from_branch?.code ?? extra.get(r.from_branch_id ?? "")?.code ?? "-",
       toBranchId: r.to_branch_id,
-      toCode: r.to_branch?.code ?? "-",
-      toName: r.to_branch?.name ?? "-",
+      toCode: r.to_branch?.code ?? extra.get(r.to_branch_id)?.code ?? "-",
+      toName: r.to_branch?.name ?? extra.get(r.to_branch_id)?.name ?? "-",
       dateFrom: r.date_from,
       dateTo: r.date_to,
       note: r.note ?? "",

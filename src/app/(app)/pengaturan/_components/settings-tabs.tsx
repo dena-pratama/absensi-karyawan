@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { underlineTabClass, underlineTabsNavClass } from "@/components/shell/page-layout";
+import { TabIndicator, underlineTabClass, underlineTabsNavClass } from "@/components/shell/page-layout";
 import { unsavedStore } from "./staged";
 
 export type SettingsTab = "karyawan" | "cabang" | "backup" | "jabatan" | "akses" | "ai";
@@ -48,6 +48,7 @@ export function SettingsTabs({
                 {t.count}
               </span>
             )}
+            {isActive && <TabIndicator group="pengaturan" />}
           </Link>
         );
       })}

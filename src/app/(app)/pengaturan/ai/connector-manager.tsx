@@ -74,7 +74,7 @@ export function ConnectorManager({
       const res = await testConnector(selected, apiKey);
       if (res.ok) {
         setModels(res.models);
-        setToast({ text: `Koneksi berhasil — ${res.models.length} model tersedia.`, error: false });
+        setToast({ text: `Koneksi berhasil, ${res.models.length} model tersedia.`, error: false });
       } else {
         setToast({ text: res.error, error: true });
       }
@@ -134,7 +134,7 @@ export function ConnectorManager({
                     {c?.isActive ? "● Aktif" : c ? "Tersimpan" : "Belum diatur"}
                   </span>
                 </div>
-                <div className="text-xs text-gray-300 font-mono truncate">{c?.model ?? "—"}</div>
+                <div className="text-xs text-gray-300 font-mono truncate">{c?.model ?? "-"}</div>
                 <div className="text-[10px] text-gray-400">
                   {c ? `Key ••••${c.last4} • diperbarui ${formatUpdated(c.updatedAt)}` : "Klik untuk mengatur"}
                 </div>
@@ -187,7 +187,7 @@ export function ConnectorManager({
                 </button>
               </span>
             </Field>
-            <Field label="Model" hint={models.length ? `${models.length} model dari hasil tes koneksi — ketik untuk mencari.` : "Klik Tes Koneksi untuk memuat daftar model."}>
+            <Field label="Model" hint={models.length ? `${models.length} model dari hasil tes koneksi. Ketik untuk mencari.` : "Klik Tes Koneksi untuk memuat daftar model."}>
               <input
                 list="ai-models"
                 className={`${inputCls} font-mono`}

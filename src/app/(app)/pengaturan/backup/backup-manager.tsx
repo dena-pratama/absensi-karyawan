@@ -268,17 +268,17 @@ export function BackupManager({
           <>
             <Field label="Karyawan" hint={editingEmployee ? `Cabang asal: ${editingEmployee.sub}` : "Dipilih dari karyawan aktif yang sudah ditempatkan."}>
               <SelectBox value={editing.employeeId} onChange={(e) => setEditing({ ...editing, employeeId: e.target.value })} required>
-                <option value="">— Pilih karyawan —</option>
+                <option value="">Pilih karyawan…</option>
                 {employees.map((e) => (
                   <option key={e.id} value={e.id}>
-                    {e.label} — {e.sub}
+                    {e.label} · {e.sub}
                   </option>
                 ))}
               </SelectBox>
             </Field>
             <Field label="Cabang tujuan">
               <SelectBox value={editing.toBranchId} onChange={(e) => setEditing({ ...editing, toBranchId: e.target.value })} required>
-                <option value="">— Pilih cabang tujuan —</option>
+                <option value="">Pilih cabang tujuan…</option>
                 {branches
                   .filter((b) => b.id !== editingEmployee?.branchId)
                   .map((b) => (

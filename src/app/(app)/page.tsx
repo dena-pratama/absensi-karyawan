@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
+import { CountUp, GrowBar } from "@/components/dashboard-motion";
 import { PageBody, PageHeader, PageTabs } from "@/components/shell/page-layout";
 import { getDashboardStats, type BranchStats, type StaffToday } from "@/lib/data/dashboard";
 import { getShellData } from "@/lib/data/shell";
@@ -146,7 +147,7 @@ function AttendanceByBranch({ stats }: { stats: BranchStats[] }) {
         <div className="flex items-center justify-between p-3 rounded-xl bg-panel-raised border border-line-strong">
           <div className="flex items-center gap-3">
             <div className="min-w-9 h-9 px-1 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 font-bold text-sm tabular-nums">
-              {globalPercent === null ? "–" : `${globalPercent}%`}
+              {globalPercent === null ? "–" : <CountUp value={globalPercent} />}
             </div>
             <div>
               <div className="text-xs font-bold text-gray-100">Rata-rata Kehadiran Global</div>
@@ -158,7 +159,7 @@ function AttendanceByBranch({ stats }: { stats: BranchStats[] }) {
 
         {sorted.length ? (
           <div className="flex flex-col gap-3.5">
-            {sorted.map((s) => {
+            {sorted.map((s, i) => {
               const t = tone(s.percent ?? 0);
               return (
                 <div key={s.id} className="flex flex-col gap-1.5">
@@ -171,7 +172,9 @@ function AttendanceByBranch({ stats }: { stats: BranchStats[] }) {
                       <span className={`text-[10px] ${t.sub}`}>
                         {s.hadir}/{s.total} Staf
                       </span>
-                      <span className={`text-xs font-bold ${t.text}`}>{s.percent}%</span>
+                      <span className={`text-xs font-bold ${t.text}`}>
+                        <CountUp value={s.percent ?? 0} delay={0.1 + i * 0.06} />
+                      </span>
                     </div>
                   </div>
                   <div
@@ -182,7 +185,7 @@ function AttendanceByBranch({ stats }: { stats: BranchStats[] }) {
                     aria-valuemin={0}
                     aria-valuemax={100}
                   >
-                    <div className={`h-full rounded-full ${t.bar}`} style={{ width: `${s.percent}%` }} />
+                    <GrowBar percent={s.percent ?? 0} index={i} className={`h-full rounded-full ${t.bar}`} />
                   </div>
                 </div>
               );

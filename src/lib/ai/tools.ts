@@ -248,7 +248,7 @@ export function createToolExecutor(today: string) {
           proposals.push({ proposal, token: signPayload(proposal) });
           return json({
             usulan_id: proposal.id,
-            status: "MENUNGGU PERSETUJUAN ADMIN — belum tersimpan",
+            status: "MENUNGGU PERSETUJUAN ADMIN, belum tersimpan",
             jumlah_perubahan: changes.length,
             nik_ditolak: unknown.length ? unknown : undefined,
             instruksi: "Sampaikan ringkasan usulan ke admin dan minta admin menekan Setujui/Tolak pada kartu usulan. Jangan menyatakan data sudah tersimpan.",

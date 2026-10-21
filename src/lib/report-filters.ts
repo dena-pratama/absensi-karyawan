@@ -42,11 +42,11 @@ export function parseReportFilters(params: Params): ReportFilters & { error: str
 
   if (to > today) to = today;
   if (from > to) {
-    error = "Tanggal awal lebih besar dari tanggal akhir — ditukar otomatis.";
+    error = "Tanggal awal lebih besar dari tanggal akhir, jadi ditukar otomatis.";
     [from, to] = [to, from];
   }
   if (daysBetween(from, to) >= MAX_RANGE_DAYS) {
-    error = `Rentang maksimal ${MAX_RANGE_DAYS} hari — tanggal awal disesuaikan.`;
+    error = `Rentang maksimal ${MAX_RANGE_DAYS} hari, jadi tanggal awal disesuaikan.`;
     const d = new Date(`${to}T00:00:00Z`);
     d.setUTCDate(d.getUTCDate() - (MAX_RANGE_DAYS - 1));
     from = d.toISOString().slice(0, 10);

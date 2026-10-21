@@ -5,6 +5,94 @@ Format: entri terbaru di paling atas.
 
 ---
 
+## 2026-10-22 — Tanda pisah panjang (—) dihapus dari teks tampilan
+
+- Feedback user: teks "Mode lihat saja — absensi diisi …" terlihat jelek karena tanda pisah panjang.
+- Semua "—" di teks yang tampil ke pengguna diganti tanda baca biasa:
+  - kalimat → titik / koma ("Mode lihat saja. Absensi diisi lewat aplikasi mobile atau oleh admin.", pratinjau Laporan, toast & hint Konektor AI, peringatan migrasi di Pengguna & Akses, akurasi lokasi & titik belum diatur di Area GPS, info Smart AI, pesan filter Laporan, status usulan AI);
+  - placeholder pilihan "— Pilih karyawan / cabang / cabang tujuan —" → "Pilih …" (gaya sama dengan pilihan lain);
+  - sel kosong "—" di tabel aturan akses & model AI → "-";
+  - pemisah opsi "Nama — Cabang" / "— jabatan" → "·".
+- Komentar di kode tidak diubah (tidak tampil).
+- Verifikasi: `grep` tidak menemukan "—" lagi di teks tampilan; `tsc` + `eslint` lolos.
+
+---
+
+## 2026-10-22 — Fix keamanan: karyawan bisa melihat semua cabang
+
+- Laporan user: login sebagai karyawan, pemilih cabang / dashboard menampilkan cabang lain.
+- Penyebab: policy `rls_member_read` di migrasi `backup_and_multi_branch_spv` (semua akun terdaftar boleh membaca tabel `branch`), yang dibuat agar SPV bisa memilih cabang tujuan backup.
+  - Data karyawan / absensi cabang lain tetap terlindungi policy lain.
+  - Yang terlihat hanya daftar cabang (kode, nama, titik GPS).
+- Migrasi baru `supabase/migrations/20261022010000_branch_visibility_fix.sql` (**sudah dijalankan user**; login karyawan kini hanya melihat cabangnya):
+  - hapus `rls_member_read`;
+  - fungsi `backup_branch_options()` (security definer): id / kode / nama cabang aktif, **khusus admin & SPV**.
+- Diuji di Postgres (PGlite), dengan karyawan di AAA backup ke CCC dan SPV di BBB:
+  - tabel `branch`: admin semua, SPV hanya BBB, karyawan hanya AAA + CCC;
+  - `backup_branch_options()`: admin & SPV semua, karyawan kosong;
+  - migrasi aman diulang.
+- Web: `getBackups()` mengisi kode cabang yang tak terbaca oleh SPV (cabang lawan backup) dari `backup_branch_options()`, sehingga label tidak tampil "-".
+- App mobile: diminta ke session `mobile-login` untuk mengganti daftar cabang tujuan backup (`src/lib/spv.tsx`) ke RPC itu.
+- Verifikasi: `tsc` + `eslint` lolos.
+
+---
+
+## 2026-10-22 — Garis tab bergeser, perpindahan halaman, animasi dashboard
+
+Langkah 3–5 dari rencana animasi (lihat entri Motion di bawah). Mengikuti panduan Next `view-transitions.md` di `node_modules/next/dist/docs`: di App Router, navigasi adalah *transition*, jadi `<ViewTransition>` (React 19.3) aktif otomatis.
+
+- **Perpindahan halaman** (`components/shell/page-layout.tsx`):
+  - `PageHeader` & `PageBody` dibungkus `PageTransition` = `<ViewTransition enter="page-enter" exit="page-exit" default="none">`;
+  - isi lama keluar memudar cepat (120 ms), isi baru memudar + naik 8 px (220–280 ms);
+  - ditaruh di komponen halaman, bukan layout, sehingga topbar & sidebar diam;
+  - `::view-transition-old/new(root)` tanpa animasi.
+- **Garis bawah tab** bergeser dari tab lama ke tab baru, tidak lompat:
+  - garis aktif dipisah dari `::after` menjadi `TabIndicator` dengan nama view transition per grup (`tab-indicator-absensi`, `tab-indicator-pengaturan`) + `share="tab-indicator"`; browser memorf posisinya antar halaman;
+  - tab tidak aktif tetap punya garis tipis saat hover.
+- CSS di `globals.css`:
+  - `::view-transition { pointer-events: none }` (klik tetap jalan selama animasi);
+  - durasi 0 untuk `prefers-reduced-motion`.
+- **Dashboard** (`components/dashboard-motion.tsx`):
+  - `CountUp`: persentase kehadiran global & per cabang naik bertahap dari 0 (pembaca layar langsung membaca angka akhir);
+  - `GrowBar`: progress bar memanjang dari 0, berurutan;
+  - kartu cabang di carousel muncul berurutan (naik + memudar), juga saat carousel digeser;
+  - semua mematuhi "kurangi animasi".
+- Verifikasi:
+  - React 19.3.0 mengekspor `ViewTransition` & `addTransitionType`;
+  - `tsc`, `eslint`, dan `next build` lolos; CSS build berisi semua aturan `::view-transition`;
+  - dev server sempat menyajikan CSS lama (belum recompile setelah `globals.css` ditambah), lalu di-restart dan aturan view-transition sudah tersaji;
+  - animasi di halaman setelah login belum dilihat langsung (butuh login).
+
+---
+
+## 2026-10-22 — Animasi halus dengan Motion (pop up, toast, dropdown)
+
+- Keputusan:
+  - **Motion** (`motion@14.5.0`, penerus Framer Motion) untuk interaksi kecil;
+  - perpindahan halaman nanti memakai `<ViewTransition>` bawaan React 19.3 / Next 16 (tanpa library, lebih cocok untuk App Router).
+  - Tahap ini = langkah 1–2.
+- **Fondasi** `components/motion.tsx`:
+  - `MotionProvider` di root layout: `LazyMotion` + `domAnimation` (hanya fitur dasar → bundle kecil, `strict` memaksa `m.*`) dan `MotionConfig reducedMotion="user"` (animasi mati bila perangkat memilih "kurangi animasi");
+  - preset seragam: `EASE_OUT`, `FADE` (latar), `POP` (kotak pop up), `DROP` (dropdown), `TOAST`.
+- **Pop up**:
+  - `PopupLayer`: latar memudar;
+  - `Modal` (semua form Pengaturan) & penampil foto selfie: kotak memudar + membesar sedikit dari bawah;
+  - animasi keluar berjalan sebelum hilang (`AnimatePresence`); penampil foto dipecah jadi `PhotoDialog` supaya isinya tetap ada saat animasi keluar.
+- **Toast**: 3 salinan (Pengaturan, Absensi Harian, Login) disatukan menjadi `components/toast.tsx`:
+  - naik masuk / turun keluar, lewat portal ke `<body>`;
+  - region `role="status"` tetap untuk pembaca layar;
+  - posisi default di atas bilah navigasi mobile (login: `bottom-6`).
+- **Dropdown**:
+  - pemilih cabang topbar dan `BranchMultiPicker` (SPV) turun memudar;
+  - menu profil topbar diganti dari `<details>` (tanpa animasi, tidak tertutup saat klik di luar) menjadi komponen client `shell/user-menu.tsx`;
+  - logika "tutup saat klik di luar / Esc" yang tadinya disalin 3 kali disatukan jadi hook `components/use-dismiss.ts`.
+- Verifikasi:
+  - `tsc`, `eslint`, dan `next build` lolos;
+  - di Browser pane (login, username tidak valid): toast muncul via `<body>` (opacity 1, region live berisi pesan) lalu hilang otomatis; tidak ada error hydration;
+  - pop up & dropdown di halaman setelah login belum dilihat langsung.
+
+---
+
 ## 2026-10-22 — Sidebar tetap di tempat + navigasi bawah di mobile
 
 - Feedback user: posisi sidebar naik-turun saat pindah halaman (Dashboard → Absensi), dan di mobile sidebar diminta di bawah.

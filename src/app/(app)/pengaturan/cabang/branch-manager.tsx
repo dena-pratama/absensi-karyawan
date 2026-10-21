@@ -415,7 +415,7 @@ export function BranchManager({
                 {employees.map((e) => (
                   <option key={e.id} value={e.id}>
                     {e.label}
-                    {e.sub ? ` — ${e.sub}` : ""}
+                    {e.sub ? ` · ${e.sub}` : ""}
                   </option>
                 ))}
               </SelectBox>

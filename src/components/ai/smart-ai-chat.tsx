@@ -191,7 +191,7 @@ export function SmartAiChat() {
               <div className="flex flex-col gap-3">
                 <div className="rounded-xl border border-line bg-panel p-3.5 text-xs text-gray-300 leading-relaxed">
                   Halo! Saya membaca data absensi, cabang, dan karyawan secara langsung untuk menjawab pertanyaan Anda. Saya juga bisa
-                  menyiapkan <b className="text-ink">usulan pengisian absensi</b> — perubahan baru tersimpan setelah Anda menekan{" "}
+                  menyiapkan <b className="text-ink">usulan pengisian absensi</b>. Perubahan baru tersimpan setelah Anda menekan{" "}
                   <b className="text-emerald-300">Setujui</b>.
                 </div>
                 <div className="flex flex-col gap-2">

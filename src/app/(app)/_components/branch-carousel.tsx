@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { m } from "motion/react";
+import { EASE_OUT } from "@/components/motion";
 import { openBranchEmployees } from "@/lib/actions/branch";
 
 export type BranchCard = {
@@ -66,9 +68,13 @@ export function BranchCarousel({ cards }: { cards: BranchCard[] }) {
   return (
     <div className="relative flex flex-col lg:flex-row items-center gap-3">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5 w-full">
-        {visible.map(({ card, palette: p }) => (
-          <div
+        {visible.map(({ card, palette: p }, i) => (
+          // Kartu muncul berurutan (naik + memudar); ikut berlaku saat carousel digeser.
+          <m.div
             key={card.id}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, delay: i * 0.07, ease: EASE_OUT }}
             data-theme="dark"
             className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${p.card} p-5 text-gray-900 shadow-lg flex flex-col justify-between h-[170px]`}
           >
@@ -123,7 +129,7 @@ export function BranchCarousel({ cards }: { cards: BranchCard[] }) {
                 Lihat Detail
               </button>
             </div>
-          </div>
+          </m.div>
         ))}
       </div>
 
