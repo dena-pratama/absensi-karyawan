@@ -6,16 +6,18 @@ import { Icon } from "@/components/icon";
 import { createUserAccount, saveUserAccess, type NewAccount } from "@/lib/actions/access";
 import type { UserAccess } from "@/lib/data/access";
 import { APP_ROLE_LABEL, type AppRole } from "@/lib/labels";
+import { PASSWORD_MIN, USERNAME_HINT, usernameFromNik } from "@/lib/login-id";
 import { ApplyBar, ChangeBadge, Field, Modal, Pagination, SelectBox, Toast, filterCls, inputCls, useToastTimer } from "../_components/ui";
 import { useStaged } from "../_components/staged";
+import { BranchMultiPicker } from "./branch-multi-picker";
 
 type UserRow = UserAccess & { createdLabel: string | null; lastSignInLabel: string | null };
-type Draft = { id: string; role: AppRole | ""; branchId: string; employeeId: string };
+type Draft = { id: string; role: AppRole | ""; branchIds: string[]; employeeId: string };
 type Option = { id: string; label: string };
 type RoleFilter = "" | AppRole | "none";
 
 const PAGE_SIZE = 10;
-const EMPTY_ACCOUNT: NewAccount = { email: "", password: "", role: "karyawan", branchId: "", employeeId: "" };
+const EMPTY_ACCOUNT: NewAccount = { login: "", password: "", role: "karyawan", branchIds: [], employeeId: "" };
 
 const ROLE_STYLE: Record<AppRole | "", string> = {
   admin: "bg-cyan-500/10 text-cyan-300 border-cyan-500/30",
@@ -26,11 +28,12 @@ const ROLE_STYLE: Record<AppRole | "", string> = {
 
 /** Ringkasan hak akses per role — mengikuti policy di migrasi role_based_rls. */
 const MATRIX: { area: string; admin: string; spv: string; karyawan: string }[] = [
-  { area: "Panel web: Dashboard & Absensi", admin: "Lihat & ubah", spv: "Lihat saja, cabangnya", karyawan: "Lihat saja, dirinya" },
+  { area: "Panel web: Dashboard & Absensi", admin: "Lihat & ubah", spv: "Lihat saja, cabang-cabangnya", karyawan: "Lihat saja, dirinya" },
   { area: "Panel web: Laporan & Pengaturan", admin: "Penuh", spv: "—", karyawan: "—" },
-  { area: "Data karyawan & penempatan", admin: "Baca & ubah", spv: "Baca, cabangnya", karyawan: "Baca, dirinya" },
-  { area: "Data cabang", admin: "Baca & ubah", spv: "Baca, cabangnya", karyawan: "Baca, cabangnya" },
-  { area: "Absensi harian (app mobile)", admin: "Baca & ubah", spv: "Isi/ubah cabangnya (s/d hari ini)", karyawan: "Isi/ubah miliknya, hari ini" },
+  { area: "Data karyawan & penempatan", admin: "Baca & ubah", spv: "Baca, cabang-cabangnya", karyawan: "Baca, dirinya" },
+  { area: "Data cabang", admin: "Baca & ubah", spv: "Baca, cabang-cabangnya", karyawan: "Baca, cabang-cabangnya" },
+  { area: "Absensi harian (app mobile)", admin: "Baca & ubah", spv: "Isi/ubah cabang-cabangnya (s/d hari ini)", karyawan: "Isi/ubah miliknya, hari ini" },
+  { area: "Penugasan backup karyawan", admin: "Buat & ubah (web)", spv: "Buat & ubah (app), cabang-cabangnya", karyawan: "Lihat miliknya" },
   { area: "Master jabatan & cluster", admin: "Baca & ubah", spv: "Baca", karyawan: "Baca" },
   { area: "Log perubahan, konektor AI, hak akses", admin: "Penuh", spv: "—", karyawan: "—" },
 ];
@@ -53,7 +56,7 @@ export function AccessManager({
 }) {
   const router = useRouter();
   const initial = useMemo<Draft[]>(
-    () => users.map((u) => ({ id: u.userId, role: u.role ?? "", branchId: u.branchId, employeeId: u.employeeId })),
+    () => users.map((u) => ({ id: u.userId, role: u.role ?? "", branchIds: u.branchIds, employeeId: u.employeeId })),
     [users],
   );
   const staged = useStaged(initial);
@@ -101,7 +104,7 @@ export function AccessManager({
       const res = await createUserAccount(account);
       if (!res.ok) return setFormError(res.error);
       setAccount(null);
-      setToast({ text: `Akun ${res.email} berhasil dibuat.`, error: false });
+      setToast({ text: `Akun ${res.login} berhasil dibuat.`, error: false });
       router.refresh();
     });
 
@@ -110,19 +113,19 @@ export function AccessManager({
     const cur = staged.rows.find((r) => r.id === id);
     staged.patch(id, {
       role,
-      branchId: role === "spv" ? (cur?.branchId ?? "") : "",
+      branchIds: role === "spv" ? (cur?.branchIds ?? []) : [],
       employeeId: role === "karyawan" ? (cur?.employeeId ?? "") : "",
     });
   };
 
   const apply = () =>
     startSaving(async () => {
-      const invalid = staged.changes.find((c) => (c.role === "spv" && !c.branchId) || (c.role === "karyawan" && !c.employeeId));
+      const invalid = staged.changes.find((c) => (c.role === "spv" && !c.branchIds.length) || (c.role === "karyawan" && !c.employeeId));
       if (invalid) {
         setToast({ text: `${userById.get(invalid.id)?.email}: lengkapi ${invalid.role === "spv" ? "cabang" : "data karyawan"}.`, error: true });
         return;
       }
-      const res = await saveUserAccess(staged.changes.map((c) => ({ userId: c.id, role: c.role, branchId: c.branchId, employeeId: c.employeeId })));
+      const res = await saveUserAccess(staged.changes.map((c) => ({ userId: c.id, role: c.role, branchIds: c.branchIds, employeeId: c.employeeId })));
       setToast(
         res.ok
           ? { text: `${res.applied} perubahan hak akses diterapkan.`, error: false }
@@ -178,8 +181,8 @@ export function AccessManager({
                 type="search"
                 value={query}
                 onChange={(e) => (setQuery(e.target.value), setPage(1))}
-                aria-label="Cari email"
-                placeholder="Cari email..."
+                aria-label="Cari username / email"
+                placeholder="Cari username / email..."
                 className={`${filterCls} w-full pl-9 pr-3 py-2 placeholder-gray-500`}
               />
             </div>
@@ -265,14 +268,7 @@ export function AccessManager({
                       {r.role === "admin" && <span className="text-gray-300">Semua data{isMe && " · akun sendiri tidak bisa diubah"}</span>}
                       {r.role === "" && <span className="text-gray-500">Tidak bisa membaca data apa pun</span>}
                       {r.role === "spv" && (
-                        <SelectBox value={r.branchId} onChange={(e) => staged.patch(r.id, { branchId: e.target.value })} aria-label="Cabang SPV">
-                          <option value="">— Pilih cabang —</option>
-                          {branches.map((b) => (
-                            <option key={b.id} value={b.id}>
-                              {b.label}
-                            </option>
-                          ))}
-                        </SelectBox>
+                        <BranchMultiPicker value={r.branchIds} options={branches} onChange={(ids) => staged.patch(r.id, { branchIds: ids })} />
                       )}
                       {r.role === "karyawan" && (
                         <SelectBox value={r.employeeId} onChange={(e) => staged.patch(r.id, { employeeId: e.target.value })} aria-label="Data karyawan">
@@ -347,7 +343,7 @@ export function AccessManager({
       <Modal
         open={account !== null}
         title="Tambah Akun"
-        description="Akun langsung aktif (email tidak perlu verifikasi). Berikan email & kata sandi awal ke penggunanya."
+        description="Akun langsung aktif. Berikan username & kata sandi awal ke penggunanya."
         onClose={closeAccount}
         onSubmit={createAccount}
         submitLabel={creating ? "Membuat..." : "Buat Akun"}
@@ -356,17 +352,20 @@ export function AccessManager({
         {account && (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              <Field label="Email">
+              <Field label="Username / Email" hint={USERNAME_HINT}>
                 <input
-                  type="email"
-                  className={inputCls}
-                  value={account.email}
-                  onChange={(e) => setAccount({ ...account, email: e.target.value })}
+                  type="text"
+                  className={`${inputCls} font-mono`}
+                  value={account.login}
+                  onChange={(e) => setAccount({ ...account, login: e.target.value })}
+                  placeholder="mis. budi01"
+                  autoCapitalize="none"
+                  spellCheck={false}
                   autoComplete="off"
                   required
                 />
               </Field>
-              <Field label="Kata Sandi Awal" hint="Minimal 8 karakter.">
+              <Field label="Kata Sandi Awal" hint={`Minimal ${PASSWORD_MIN} karakter, bebas huruf / angka / simbol.`}>
                 <span className="relative block">
                   <input
                     type={showPassword ? "text" : "password"}
@@ -374,7 +373,7 @@ export function AccessManager({
                     value={account.password}
                     onChange={(e) => setAccount({ ...account, password: e.target.value })}
                     autoComplete="new-password"
-                    minLength={8}
+                    minLength={PASSWORD_MIN}
                     required
                   />
                   <button
@@ -392,7 +391,7 @@ export function AccessManager({
               <Field label="Role">
                 <SelectBox
                   value={account.role}
-                  onChange={(e) => setAccount({ ...account, role: e.target.value as AppRole, branchId: "", employeeId: "" })}
+                  onChange={(e) => setAccount({ ...account, role: e.target.value as AppRole, branchIds: [], employeeId: "" })}
                 >
                   <option value="karyawan">{APP_ROLE_LABEL.karyawan}</option>
                   <option value="spv">{APP_ROLE_LABEL.spv}</option>
@@ -400,20 +399,21 @@ export function AccessManager({
                 </SelectBox>
               </Field>
               {account.role === "spv" && (
-                <Field label="Cabang yang Dipegang">
-                  <SelectBox value={account.branchId} onChange={(e) => setAccount({ ...account, branchId: e.target.value })} required>
-                    <option value="">— Pilih cabang —</option>
-                    {branches.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.label}
-                      </option>
-                    ))}
-                  </SelectBox>
+                <Field label="Cabang yang Dipegang" hint="Boleh lebih dari satu cabang.">
+                  <BranchMultiPicker value={account.branchIds} options={branches} onChange={(ids) => setAccount({ ...account, branchIds: ids })} />
                 </Field>
               )}
               {account.role === "karyawan" && (
                 <Field label="Data Karyawan" hint="Satu data karyawan hanya untuk satu akun.">
-                  <SelectBox value={account.employeeId} onChange={(e) => setAccount({ ...account, employeeId: e.target.value })} required>
+                  <SelectBox
+                    value={account.employeeId}
+                    // Username kosong → isi otomatis dari NIK karyawan yang dipilih.
+                    onChange={(e) => {
+                      const nik = employees.find((x) => x.id === e.target.value)?.label.match(/(([^)]+))$/)?.[1] ?? "";
+                      setAccount({ ...account, employeeId: e.target.value, login: account.login || usernameFromNik(nik) });
+                    }}
+                    required
+                  >
                     <option value="">— Pilih karyawan —</option>
                     {employees.map((e) => (
                       <option key={e.id} value={e.id} disabled={takenEmployee.has(e.id)}>

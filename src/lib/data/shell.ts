@@ -3,6 +3,7 @@ import { cache } from "react";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { initials } from "@/lib/format";
+import { displayLogin } from "@/lib/login-id";
 import type { BranchType } from "@/lib/labels";
 
 export const ACTIVE_BRANCH_COOKIE = "active_branch";
@@ -43,7 +44,8 @@ export const getShellData = cache(async (): Promise<ShellData> => {
   const activeBranch = list.find((b) => b.id === savedId) ?? list[0] ?? null;
 
   const claims = auth?.claims;
-  const email = String(claims?.email ?? "");
+  // Akun username → tampilkan username, bukan email internal.
+  const email = displayLogin(String(claims?.email ?? ""));
   const meta = (claims?.user_metadata ?? {}) as Record<string, unknown>;
   const fallback = email.split("@")[0] ?? "Admin";
   const name = String(meta.full_name ?? meta.name ?? fallback.charAt(0).toUpperCase() + fallback.slice(1));

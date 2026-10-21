@@ -72,7 +72,7 @@ Aplikasi ini sengaja dibuat **sederhana**:
   - **area GPS absen**: titik koordinat (tempel dari Google Maps / lokasi saat ini) + radius, dengan pratinjau peta.
 - **Master Jabatan** — daftar jabatan dan status aktifnya.
 - **Pengguna & Akses**:
-  - tambah akun login (email + kata sandi awal), dengan pencarian, filter role, dan paginasi;
+  - tambah akun login (**username** atau email + kata sandi awal min. 6 karakter), dengan pencarian, filter role, dan paginasi;
   - atur role (Admin / SPV Cabang / Karyawan / Tanpa Akses) beserta cakupannya: cabang untuk SPV, data karyawan untuk karyawan;
   - tabel ringkasan aturan RLS per role.
 - Perubahan ditampung sebagai **draf** dan baru disimpan saat klik *Terapkan Pengaturan*.
@@ -176,6 +176,8 @@ Jalankan file berikut **berurutan** di **Supabase → SQL Editor**:
 | 5 | `supabase/migrations/20261020040000_assignment_from_join_date.sql` | Penempatan pertama dimulai dari tanggal bergabung. |
 | 6 | `supabase/migrations/20261021000000_role_based_rls.sql` | Role akun (admin / SPV / karyawan) + RLS per role. Akun yang sudah ada otomatis jadi admin. |
 | 7 | `supabase/migrations/20261021010000_branch_geofence.sql` | Area GPS absen per cabang (titik + radius) untuk app mobile. |
+| 8 | `supabase/migrations/20261021020000_attendance_check_in_out.sql` | Check in / check out dari app mobile (GPS + selfie, foto privat). |
+| 9 | `supabase/migrations/20261022000000_backup_and_multi_branch_spv.sql` | Backup karyawan antar cabang, SPV banyak cabang, check in di cabang backup. |
 | — | `supabase/seed_demo.sql` | *Opsional* — data demo (cabang & karyawan fiktif). |
 
 > **Instalasi baru:** jalankan migrasi #6 **setelah** membuat akun admin pertama (langkah 2), atau jalankan ulang file itu setelahnya. Selama tabel `app_user` masih kosong, akun yang sudah ada otomatis dijadikan admin.

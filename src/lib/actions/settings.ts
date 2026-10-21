@@ -20,6 +20,70 @@ function friendly(error: { code?: string; message: string }, context: string) {
   return `${context}: gagal disimpan.`;
 }
 
+type Supabase = Awaited<ReturnType<typeof createClient>>;
+
+/**
+ * Mutasi cabang / jabatan dengan tanggal efektif (r.moveDate, kosong = hari ini).
+ * - Penempatan hari ini ditutup sehari sebelum tanggal efektif, penempatan baru mulai tanggal itu.
+ * - Tanggal efektif di masa depan = mutasi terjadwal; jadwal lama selalu diganti / dihapus.
+ * - Tidak boleh sebelum penempatan hari ini dimulai (riwayat lama tidak ditulis ulang).
+ * Mengembalikan pesan error, atau null bila berhasil.
+ */
+async function applyMutation(supabase: Supabase, r: EmployeeSetting, today: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("employee_assignment")
+    .select("id, branch_id, job_role_id, valid_from, valid_to")
+    .eq("employee_id", r.id)
+    .or(`valid_to.is.null,valid_to.gte.${today}`);
+  if (error) return friendly(error, `Penempatan ${r.nik}`);
+  const rows = (data ?? []) as { id: string; branch_id: string; job_role_id: string; valid_from: string; valid_to: string | null }[];
+  const current = rows.find((a) => a.valid_from <= today) ?? null;
+  const future = rows.filter((a) => a.valid_from > today);
+
+  const dropFuture = async () => {
+    if (!future.length) return null;
+    const { error: dErr } = await supabase.from("employee_assignment").delete().in("id", future.map((a) => a.id));
+    return dErr ? friendly(dErr, `Mutasi ${r.nik}`) : null;
+  };
+
+  const changed = !current || current.branch_id !== r.branchId || current.job_role_id !== r.roleId;
+  if (!changed) {
+    if (!r.cancelScheduled || !future.length) return null;
+    // Batalkan jadwal pindah: hapus penempatan mendatang, penempatan hari ini berlaku lagi tanpa batas.
+    const err = await dropFuture();
+    if (err) return err;
+    const { error: oErr } = current
+      ? await supabase.from("employee_assignment").update({ valid_to: null }).eq("id", current.id)
+      : { error: null };
+    return oErr ? friendly(oErr, `Mutasi ${r.nik}`) : null;
+  }
+
+  const eff = r.moveDate || today;
+  if (current && eff < current.valid_from) {
+    return `Tanggal efektif mutasi ${r.nik} tidak boleh sebelum ${current.valid_from} (awal penempatan saat ini).`;
+  }
+
+  const dropErr = await dropFuture();
+  if (dropErr) return dropErr;
+
+  if (current && current.valid_from === eff) {
+    // Penempatan saat ini baru mulai di tanggal yang sama → cukup diganti.
+    const { error: uErr } = await supabase
+      .from("employee_assignment")
+      .update({ branch_id: r.branchId, job_role_id: r.roleId, valid_to: null })
+      .eq("id", current.id);
+    return uErr ? friendly(uErr, `Mutasi ${r.nik}`) : null;
+  }
+  if (current) {
+    const { error: cErr } = await supabase.from("employee_assignment").update({ valid_to: yesterday(eff) }).eq("id", current.id);
+    if (cErr) return friendly(cErr, `Mutasi ${r.nik}`);
+  }
+  const { error: iErr } = await supabase
+    .from("employee_assignment")
+    .insert({ employee_id: r.id, branch_id: r.branchId, job_role_id: r.roleId, valid_from: eff });
+  return iErr ? friendly(iErr, `Mutasi ${r.nik}`) : null;
+}
+
 function yesterday(ymd: string) {
   const d = new Date(`${ymd}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() - 1);
@@ -39,6 +103,7 @@ function validateEmployee(e: EmployeeSetting): string | null {
   if (!CONTRACTS.includes(e.contract)) return `Status kontrak ${e.nik} tidak valid.`;
   if (e.joinDate && parseDateParam(e.joinDate, "") !== e.joinDate) return `Tanggal bergabung ${e.nik} tidak valid.`;
   if (!e.branchId || !e.roleId) return `Cabang dan jabatan ${e.nik} wajib dipilih.`;
+  if (e.moveDate && parseDateParam(e.moveDate, "") !== e.moveDate) return `Tanggal efektif mutasi ${e.nik} tidak valid.`;
   return null;
 }
 
@@ -89,36 +154,8 @@ export async function applyEmployeeChanges(rows: EmployeeSetting[]): Promise<App
     const { error } = await supabase.from("employee").update(employeeColumns(r)).eq("id", r.id);
     if (error) return fail(friendly(error, label));
 
-    const { data: current, error: cErr } = await supabase
-      .from("employee_assignment")
-      .select("id, branch_id, job_role_id, valid_from")
-      .eq("employee_id", r.id)
-      .is("valid_to", null)
-      .maybeSingle();
-    if (cErr) return fail(friendly(cErr, `Penempatan ${r.nik}`));
-
-    const changed = !current || current.branch_id !== r.branchId || current.job_role_id !== r.roleId;
-    if (changed) {
-      if (current && current.valid_from >= today) {
-        const { error: uErr } = await supabase
-          .from("employee_assignment")
-          .update({ branch_id: r.branchId, job_role_id: r.roleId })
-          .eq("id", current.id);
-        if (uErr) return fail(friendly(uErr, `Mutasi ${r.nik}`));
-      } else {
-        if (current) {
-          const { error: closeErr } = await supabase
-            .from("employee_assignment")
-            .update({ valid_to: yesterday(today) })
-            .eq("id", current.id);
-          if (closeErr) return fail(friendly(closeErr, `Mutasi ${r.nik}`));
-        }
-        const { error: insErr } = await supabase
-          .from("employee_assignment")
-          .insert({ employee_id: r.id, branch_id: r.branchId, job_role_id: r.roleId, valid_from: today });
-        if (insErr) return fail(friendly(insErr, `Mutasi ${r.nik}`));
-      }
-    }
+    const mutErr = await applyMutation(supabase, r, today);
+    if (mutErr) return fail(mutErr);
 
     // Tanggal bergabung dimundurkan → penempatan pertama ikut mundur, supaya absensi
     // tanggal-tanggal itu bisa diisi. Hanya dimundurkan, tidak pernah dimajukan,

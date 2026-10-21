@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
+import { todayWIB } from "@/lib/format";
 import { GEOFENCE_DEFAULT_M, type LatLng } from "@/lib/geo";
 import type { BranchType } from "@/lib/labels";
 
@@ -13,8 +14,14 @@ export type EmployeeSetting = {
   contract: "tetap" | "pkwt" | "mitra";
   joinDate: string; // "" kalau kosong
   isActive: boolean;
-  branchId: string; // "" kalau belum ditempatkan
+  branchId: string; // "" kalau belum ditempatkan — penempatan yang berlaku HARI INI
   roleId: string;
+  /** Mutasi terjadwal (penempatan yang mulai setelah hari ini). */
+  scheduled: { branchId: string; roleId: string; from: string } | null;
+  /** Form saja: tanggal efektif mutasi bila cabang/jabatan diubah ("" = hari ini). */
+  moveDate: string;
+  /** Form saja: batalkan mutasi terjadwal. */
+  cancelScheduled: boolean;
 };
 
 export type BranchSetting = {
@@ -59,25 +66,39 @@ async function client() {
   return createClient();
 }
 
-/** Penempatan aktif semua karyawan → map employeeId → {branchId, roleId}. */
+type AssignmentLite = { employee_id: string; branch_id: string; job_role_id: string; valid_from: string };
+
+/** Penempatan yang berlaku hari ini (bukan "valid_to kosong", supaya mutasi terjadwal tidak terhitung dulu). */
 async function activeAssignments() {
+  return (await assignmentsFrom()).current;
+}
+
+/** Penempatan hari ini + penempatan terjadwal (mulai setelah hari ini). */
+async function assignmentsFrom() {
   const supabase = await client();
+  const today = todayWIB();
   const { data, error } = await supabase
     .from("employee_assignment")
-    .select("employee_id, branch_id, job_role_id")
-    .is("valid_to", null);
+    .select("employee_id, branch_id, job_role_id, valid_from, valid_to")
+    .or(`valid_to.is.null,valid_to.gte.${today}`);
   if (error) throw new Error(`Gagal memuat penempatan: ${error.message}`);
-  return (data ?? []) as { employee_id: string; branch_id: string; job_role_id: string }[];
+  const rows = (data ?? []) as (AssignmentLite & { valid_to: string | null })[];
+  return {
+    current: rows.filter((a) => a.valid_from <= today),
+    scheduled: rows.filter((a) => a.valid_from > today).sort((a, b) => a.valid_from.localeCompare(b.valid_from)),
+  };
 }
 
 export async function getEmployeeSettings(): Promise<EmployeeSetting[]> {
   const supabase = await client();
   const [{ data, error }, assignments] = await Promise.all([
     supabase.from("employee").select("id, nik, full_name, phone_wa, contract_type, join_date, is_active").order("nik"),
-    activeAssignments(),
+    assignmentsFrom(),
   ]);
   if (error) throw new Error(`Gagal memuat karyawan: ${error.message}`);
-  const byEmployee = new Map(assignments.map((a) => [a.employee_id, a]));
+  const byEmployee = new Map(assignments.current.map((a) => [a.employee_id, a]));
+  const scheduledBy = new Map<string, AssignmentLite>();
+  for (const a of assignments.scheduled) if (!scheduledBy.has(a.employee_id)) scheduledBy.set(a.employee_id, a);
 
   return (data ?? []).map((e) => {
     const a = byEmployee.get(e.id as string);
@@ -91,6 +112,12 @@ export async function getEmployeeSettings(): Promise<EmployeeSetting[]> {
       isActive: e.is_active as boolean,
       branchId: a?.branch_id ?? "",
       roleId: a?.job_role_id ?? "",
+      scheduled: (() => {
+        const s = scheduledBy.get(e.id as string);
+        return s ? { branchId: s.branch_id, roleId: s.job_role_id, from: s.valid_from } : null;
+      })(),
+      moveDate: "",
+      cancelScheduled: false,
     };
   });
 }

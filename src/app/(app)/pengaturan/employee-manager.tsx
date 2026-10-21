@@ -7,7 +7,7 @@ import { DateInput } from "@/components/date-input";
 import { Icon } from "@/components/icon";
 import { applyEmployeeChanges } from "@/lib/actions/settings";
 import type { BranchSetting, EmployeeSetting, RoleSetting } from "@/lib/data/settings";
-import { initials } from "@/lib/format";
+import { formatDateLong, initials } from "@/lib/format";
 import { BRANCH_TYPE_LABEL, CODE_MAX } from "@/lib/labels";
 import { StatCard } from "./_components/settings-skeleton";
 import { newId, useStaged } from "./_components/staged";
@@ -59,6 +59,9 @@ const emptyEmployee = (branchId: string, roleId: string): EmployeeSetting => ({
   isActive: true,
   branchId,
   roleId,
+  scheduled: null,
+  moveDate: "",
+  cancelScheduled: false,
 });
 
 export function EmployeeManager({
@@ -276,6 +279,11 @@ export function EmployeeManager({
                               <div className="text-[10px] text-gray-400 truncate" title={`${b.name} · ${BRANCH_TYPE_LABEL[b.type]}`}>
                                 {b.name} · {BRANCH_TYPE_LABEL[b.type]}
                               </div>
+                              {e.scheduled && (
+                                <div className="text-[10px] text-cyan-300 mt-0.5 whitespace-nowrap" title="Mutasi terjadwal">
+                                  → {branchById.get(e.scheduled.branchId)?.code ?? "-"} mulai {formatDateLong(e.scheduled.from).replace(/^[^,]+, /, "")}
+                                </div>
+                              )}
                             </div>
                           </div>
                         ) : (
@@ -453,11 +461,37 @@ export function EmployeeManager({
                 </SelectBox>
               </Field>
             </div>
+            {original?.scheduled && !isMutation && (
+              <div className="text-[11px] text-cyan-200 bg-cyan-950/30 border border-cyan-500/30 rounded-lg px-3 py-2 flex flex-wrap items-center justify-between gap-2">
+                <span>
+                  Terjadwal pindah ke <b>{branchById.get(original.scheduled.branchId)?.code ?? "-"}</b> (
+                  {roleById.get(original.scheduled.roleId)?.name ?? "-"}) mulai <b>{formatDateLong(original.scheduled.from)}</b>.
+                </span>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editing.cancelScheduled}
+                    onChange={(e) => setEditing({ ...editing, cancelScheduled: e.target.checked })}
+                    className="accent-rose-500"
+                  />
+                  Batalkan jadwal pindah
+                </label>
+              </div>
+            )}
             {isMutation && (
-              <p className="text-[11px] text-amber-300 bg-amber-950/30 border border-amber-500/30 rounded-lg px-3 py-2">
-                Mutasi: penempatan lama ditutup per kemarin, penempatan baru berlaku mulai hari ini. Absensi lama tetap tercatat di
-                cabang/jabatan lama.
-              </p>
+              <div className="text-[11px] text-amber-200 bg-amber-950/30 border border-amber-500/30 rounded-lg px-3 py-2.5 space-y-2">
+                <p>
+                  <b>Mutasi.</b> Penempatan lama ditutup sehari sebelum tanggal berlaku. Absensi lama tetap tercatat di cabang / jabatan lama.
+                  Tanggal mendatang = pindah terjadwal; sampai tanggal itu karyawan tetap di cabang lama.
+                </p>
+                <Field label="Berlaku mulai" hint="Kosong = hari ini.">
+                  <DateInput
+                    className={`${inputCls} sm:max-w-[200px]`}
+                    value={editing.moveDate}
+                    onChange={(e) => setEditing({ ...editing, moveDate: e.target.value })}
+                  />
+                </Field>
+              </div>
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <Field label="Nomor WhatsApp (+62)">

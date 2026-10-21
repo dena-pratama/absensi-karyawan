@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import type { AttendanceStatus } from "@/lib/labels";
+import { getBackups } from "./backup";
 import type { BranchSummary } from "./shell";
 
 export type StaffToday = {
@@ -38,17 +39,20 @@ type AttendanceRow = {
 
 /**
  * Rekap kehadiran hari ini per cabang.
- * Roster = penempatan aktif (valid_to NULL) dari karyawan yang masih aktif.
+ * Roster = penempatan yang berlaku pada tanggal itu dari karyawan yang masih aktif;
+ * karyawan yang sedang backup dihitung di cabang tujuan.
  */
 export async function getDashboardStats(branches: BranchSummary[], date: string): Promise<BranchStats[]> {
   const supabase = await createClient();
-  const [assignRes, attRes] = await Promise.all([
+  const [assignRes, attRes, { rows: backups }] = await Promise.all([
     supabase
       .from("employee_assignment")
       .select("employee_id, branch_id, employee:employee_id!inner(nik, full_name), job_role:job_role_id(name)")
-      .is("valid_to", null)
+      .lte("valid_from", date)
+      .or(`valid_to.is.null,valid_to.gte.${date}`)
       .eq("employee.is_active", true),
     supabase.from("attendance_daily").select("employee_id, status, updated_at").eq("attendance_date", date),
+    getBackups({ from: date, to: date }),
   ]);
   if (assignRes.error) throw new Error(`Gagal memuat penempatan karyawan: ${assignRes.error.message}`);
   if (attRes.error) throw new Error(`Gagal memuat absensi: ${attRes.error.message}`);
@@ -56,11 +60,13 @@ export async function getDashboardStats(branches: BranchSummary[], date: string)
   const attendance = new Map(
     ((attRes.data ?? []) as AttendanceRow[]).map((a) => [a.employee_id, a]),
   );
+  const backupTo = new Map(backups.map((b) => [b.employeeId, b.toBranchId]));
   const staffByBranch = new Map<string, StaffToday[]>();
   for (const row of (assignRes.data ?? []) as unknown as AssignmentRow[]) {
     if (!row.employee) continue;
     const att = attendance.get(row.employee_id);
-    const list = staffByBranch.get(row.branch_id) ?? [];
+    const branchId = backupTo.get(row.employee_id) ?? row.branch_id;
+    const list = staffByBranch.get(branchId) ?? [];
     list.push({
       employeeId: row.employee_id,
       nik: row.employee.nik,
@@ -69,7 +75,7 @@ export async function getDashboardStats(branches: BranchSummary[], date: string)
       status: att?.status ?? null,
       updatedAt: att?.updated_at ?? null,
     });
-    staffByBranch.set(row.branch_id, list);
+    staffByBranch.set(branchId, list);
   }
 
   return branches.map((b) => {

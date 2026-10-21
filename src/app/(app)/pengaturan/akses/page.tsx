@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { PageBody } from "@/components/shell/page-layout";
 import { getUserAccessList } from "@/lib/data/access";
 import { getReportOptions } from "@/lib/data/report";
+import { displayLogin } from "@/lib/login-id";
 import { isAdminApiConfigured } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { SettingsHeader } from "../_components/settings-header";
@@ -43,7 +44,7 @@ async function Content() {
       rlsReady={rlsReady}
       adminApiReady={isAdminApiConfigured}
       myUserId={auth?.claims?.sub ?? ""}
-      users={users.map((u) => ({ ...u, createdLabel: formatStamp(u.createdAt), lastSignInLabel: formatStamp(u.lastSignInAt) }))}
+      users={users.map((u) => ({ ...u, email: displayLogin(u.email), createdLabel: formatStamp(u.createdAt), lastSignInLabel: formatStamp(u.lastSignInAt) }))}
       branches={options.branches}
       employees={options.employees}
     />

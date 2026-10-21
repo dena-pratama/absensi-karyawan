@@ -2,22 +2,26 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { toLoginEmail } from "@/lib/login-id";
 import { REMEMBER_COOKIE, isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 
-export type LoginState = { error: string | null; email: string };
+/** login = isian username atau email (dikembalikan supaya tidak perlu diketik ulang saat gagal). */
+export type LoginState = { error: string | null; login: string };
 
 export async function login(_prev: LoginState, formData: FormData): Promise<LoginState> {
-  const email = String(formData.get("email") ?? "").trim();
+  const identifier = String(formData.get("login") ?? "").trim();
   const password = String(formData.get("password") ?? "");
   const remember = formData.get("remember") === "on";
 
-  if (!email || !password) {
-    return { error: "Email dan kata sandi wajib diisi.", email };
+  if (!identifier || !password) {
+    return { error: "Username / email dan kata sandi wajib diisi.", login: identifier };
   }
   if (!isSupabaseConfigured) {
-    return { error: "Server belum terhubung ke Supabase. Hubungi pengelola sistem.", email };
+    return { error: "Server belum terhubung ke Supabase. Hubungi pengelola sistem.", login: identifier };
   }
+  const email = toLoginEmail(identifier);
+  if (!email) return { error: "Username / email atau kata sandi salah.", login: identifier };
 
   // Set sebelum sign-in agar cookie auth langsung mengikuti pilihan ini.
   const cookieStore = await cookies();
@@ -35,9 +39,9 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
   if (error) {
     const message =
       error.code === "invalid_credentials"
-        ? "Email atau kata sandi salah."
+        ? "Username / email atau kata sandi salah."
         : "Gagal masuk. Coba lagi beberapa saat.";
-    return { error: message, email };
+    return { error: message, login: identifier };
   }
 
   redirect("/");

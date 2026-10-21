@@ -6,6 +6,7 @@ import { openDatePicker } from "@/components/date-input";
 import { Icon } from "@/components/icon";
 import { saveAttendance, type AttendanceChange } from "@/lib/actions/attendance";
 import { initials, shiftDay } from "@/lib/format";
+import type { DayBackup } from "@/lib/data/backup";
 import type { CheckDetail } from "@/lib/data/check";
 import type { AttendanceStatus } from "@/lib/labels";
 import { CheckPhotoCell, CheckTimeCell, PhotoViewer, type PhotoView } from "./check-cells";
@@ -20,6 +21,8 @@ export type FormRow = {
   note: string;
   /** Check in / out dari app mobile (null = belum ada). */
   check: CheckDetail | null;
+  /** Backup hari itu: in = dari cabang lain, out = sedang di cabang lain (baris hanya-lihat). */
+  backup: DayBackup | null;
 };
 
 type Entry = { status: AttendanceStatus | null; note: string };
@@ -144,7 +147,10 @@ export function AttendanceForm({
   const markAllPresent = () =>
     setEntries((prev) => {
       const next = { ...prev };
-      for (const r of visible) next[r.employeeId] = { ...next[r.employeeId], status: "hadir" };
+      for (const r of visible) {
+        if (r.backup?.kind === "out") continue; // diabsen di cabang tujuan
+        next[r.employeeId] = { ...next[r.employeeId], status: "hadir" };
+      }
       return next;
     });
 
@@ -305,6 +311,7 @@ export function AttendanceForm({
             {visible.map((r, i) => {
               const e = entries[r.employeeId];
               const tone = e.status ?? "default";
+              const locked = isFuture || readOnly || r.backup?.kind === "out";
               return (
                 <tr key={r.employeeId} className={`hover:bg-panel/60 transition-colors group ${ROW_TINT[e.status ?? ""] ?? ""}`}>
                   <td className="py-3 px-3 text-center font-mono text-gray-500 group-hover:text-ink">{i + 1}</td>
@@ -321,6 +328,16 @@ export function AttendanceForm({
                       <div className="flex flex-col min-w-0">
                         <span className="font-medium text-ink truncate">{r.name}</span>
                         <span className="text-[10px] text-cyan-400 font-normal truncate">{r.roleName}</span>
+                        {r.backup && (
+                          <span
+                            className={`mt-0.5 self-start text-[9px] font-semibold px-1.5 py-px rounded ${
+                              r.backup.kind === "in" ? "bg-purple-500/15 text-purple-300" : "bg-panel-raised text-gray-400"
+                            }`}
+                            title={r.backup.kind === "out" ? "Absensi hari ini dicatat di cabang tujuan" : undefined}
+                          >
+                            {r.backup.kind === "in" ? `Backup dari ${r.backup.branchCode}` : `Sedang backup di ${r.backup.branchCode}`}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </td>
@@ -335,7 +352,7 @@ export function AttendanceForm({
                           name={`absen_${r.employeeId}`}
                           value={c.status}
                           checked={e.status === c.status}
-                          disabled={isFuture || readOnly}
+                          disabled={locked}
                           onChange={() => setEntry(r.employeeId, { status: c.status })}
                           className={`w-4 h-4 cursor-pointer ${c.accent}`}
                         />
@@ -363,7 +380,7 @@ export function AttendanceForm({
                       type="text"
                       value={e.note}
                       maxLength={200}
-                      disabled={isFuture || readOnly}
+                      disabled={locked}
                       onChange={(ev) => setEntry(r.employeeId, { note: ev.target.value })}
                       aria-label={`Keterangan ${r.name}`}
                       placeholder="-"

@@ -4,7 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import { Icon } from "@/components/icon";
 import { login, type LoginState } from "./actions";
 
-const initialState: LoginState = { error: null, email: "" };
+const initialState: LoginState = { error: null, login: "" };
 
 const inputClass =
   "w-full bg-surface-input text-on-surface placeholder:text-outline-variant text-body-sm px-3.5 py-2.5 rounded-lg " +
@@ -27,20 +27,22 @@ export function LoginForm() {
   return (
     <>
       <form action={formAction} className="flex flex-col gap-space-md">
-        {/* Email */}
+        {/* Username atau email */}
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="email" className="text-label-md text-on-surface flex items-center gap-1.5">
+          <label htmlFor="login" className="text-label-md text-on-surface flex items-center gap-1.5">
             <Icon name="badge" className="text-[15px] text-primary" />
-            Email
+            Username / Email
           </label>
           <div className="relative flex items-center">
             <input
-              id="email"
-              name="email"
-              type="email"
+              id="login"
+              name="login"
+              type="text"
               autoComplete="username"
-              placeholder="admin@perusahaan.com"
-              defaultValue={state.email}
+              autoCapitalize="none"
+              spellCheck={false}
+              placeholder="username atau email"
+              defaultValue={state.login}
               required
               className={`${inputClass} pr-10`}
             />

@@ -189,7 +189,10 @@ async function Content({ searchParams }: { searchParams: PageProps<"/absensi/rek
                     </span>
                     <span className="min-w-0">
                       <span className="block font-bold text-slate-100 truncate">{r.name}</span>
-                      <span className="block text-[10px] text-cyan-400/90 font-medium truncate">{r.roleName}</span>
+                      <span className="block text-[10px] text-cyan-400/90 font-medium truncate">
+                        {r.roleName}
+                        {r.backupFrom && <span className="text-purple-300"> · Backup dari {r.backupFrom}</span>}
+                      </span>
                     </span>
                   </Link>
                 </td>
@@ -205,6 +208,13 @@ async function Content({ searchParams }: { searchParams: PageProps<"/absensi/rek
                           className={`min-w-5 h-5 px-0.5 rounded-md inline-flex items-center justify-center font-bold text-[10px] ${CELL[status].cls}`}
                         >
                           {CELL[status].label}
+                        </span>
+                      ) : r.elsewhere[d.date] ? (
+                        <span
+                          title={`${d.day} ${formatMonthLong(month)}: tercatat di cabang ${r.elsewhere[d.date]} (tidak dihitung di sini)`}
+                          className="min-w-5 h-5 px-0.5 rounded-md inline-flex items-center justify-center text-[10px] text-purple-300 bg-purple-500/10"
+                        >
+                          ↗
                         </span>
                       ) : (
                         <span className="text-slate-600 text-[10px]">{d.date > today ? "•" : "-"}</span>

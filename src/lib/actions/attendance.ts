@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getRoster } from "@/lib/data/attendance";
+import { getDayRoster } from "@/lib/data/backup";
 import { parseDateParam, todayWIB } from "@/lib/format";
 import type { AttendanceStatus } from "@/lib/labels";
 import { READ_ONLY_ERROR, isAdmin } from "@/lib/data/access";
@@ -39,7 +39,10 @@ export async function saveAttendance(
   const userId = auth?.claims?.sub;
   if (!userId) return { ok: false, error: "Sesi berakhir. Silakan masuk kembali." };
 
-  const roster = new Map((await getRoster(branchId, date)).map((r) => [r.employeeId, r]));
+  // Karyawan yang sedang backup di cabang lain diabsen di cabang tujuan, bukan di sini.
+  const roster = new Map(
+    (await getDayRoster(branchId, date)).filter((r) => r.backup?.kind !== "out").map((r) => [r.employeeId, r]),
+  );
 
   const rows = [];
   for (const c of changes) {

@@ -17,6 +17,8 @@ export type RosterEntry = {
 
 export type AttendanceEntry = {
   employeeId: string;
+  /** Cabang tempat absen dicatat (bisa cabang backup). */
+  branchId: string;
   date: string;
   status: AttendanceStatus;
   note: string | null;
@@ -38,6 +40,7 @@ type AssignmentRow = {
 
 type AttendanceRow = {
   employee_id: string;
+  branch_id: string;
   attendance_date: string;
   status: AttendanceStatus;
   note: string | null;
@@ -60,19 +63,35 @@ export async function getJobRoles(): Promise<JobRole[]> {
  * Untuk satu hari: from = to = tanggal itu.
  */
 export async function getRoster(branchId: string, from: string, to: string = from): Promise<RosterEntry[]> {
+  return queryRoster({ branchId }, from, to);
+}
+
+/** Penempatan (cabang mana pun) karyawan tertentu pada rentang tanggal — dipakai untuk karyawan backup. */
+export async function getRosterForEmployees(employeeIds: string[], from: string, to: string = from): Promise<RosterEntry[]> {
+  if (employeeIds.length === 0) return [];
+  return queryRoster({ employeeIds }, from, to);
+}
+
+async function queryRoster(
+  by: { branchId: string } | { employeeIds: string[] },
+  from: string,
+  to: string,
+): Promise<RosterEntry[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let q = supabase
     .from("employee_assignment")
     .select(
       "employee_id, job_role_id, employee:employee_id!inner(nik, full_name, phone_wa, contract_type, join_date), job_role:job_role_id(name)",
     )
-    .eq("branch_id", branchId)
     .eq("employee.is_active", true)
     .lte("valid_from", to)
-    .or(`valid_to.is.null,valid_to.gte.${from}`);
+    .or(`valid_to.is.null,valid_to.gte.${from}`)
+    .order("valid_from", { ascending: false });
+  q = "branchId" in by ? q.eq("branch_id", by.branchId) : q.in("employee_id", by.employeeIds);
+  const { data, error } = await q;
   if (error) throw new Error(`Gagal memuat daftar karyawan: ${error.message}`);
 
-  // Satu karyawan bisa punya >1 penempatan dalam sebulan (mutasi) → ambil satu saja.
+  // Satu karyawan bisa punya >1 penempatan dalam rentang (mutasi) → ambil yang terbaru.
   const seen = new Set<string>();
   const roster: RosterEntry[] = [];
   for (const row of (data ?? []) as unknown as AssignmentRow[]) {
@@ -98,13 +117,14 @@ export async function getAttendance(employeeIds: string[], from: string, to: str
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("attendance_daily")
-    .select("employee_id, attendance_date, status, note, updated_at")
+    .select("employee_id, branch_id, attendance_date, status, note, updated_at")
     .in("employee_id", employeeIds)
     .gte("attendance_date", from)
     .lte("attendance_date", to);
   if (error) throw new Error(`Gagal memuat absensi: ${error.message}`);
   return ((data ?? []) as AttendanceRow[]).map((r) => ({
     employeeId: r.employee_id,
+    branchId: r.branch_id,
     date: r.attendance_date,
     status: r.status,
     note: r.note,

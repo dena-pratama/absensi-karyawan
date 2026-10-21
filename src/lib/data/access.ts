@@ -13,6 +13,8 @@ export type UserAccess = {
   lastSignInAt: string | null;
   role: AppRole | null; // null = belum diberi akses
   branchId: string;
+  /** Semua cabang SPV (app_user_branch). */
+  branchIds: string[];
   employeeId: string;
 };
 
@@ -32,6 +34,7 @@ export async function getUserAccessList(): Promise<{ users: UserAccess[]; rlsRea
     role: AppRole | null;
     branch_id: string | null;
     employee_id: string | null;
+    branch_ids?: string[] | null; // ada setelah migrasi backup_and_multi_branch_spv
   };
   return {
     rlsReady: true,
@@ -42,6 +45,7 @@ export async function getUserAccessList(): Promise<{ users: UserAccess[]; rlsRea
       lastSignInAt: r.last_sign_in_at,
       role: r.role,
       branchId: r.branch_id ?? "",
+      branchIds: r.branch_ids?.length ? r.branch_ids : r.branch_id ? [r.branch_id] : [],
       employeeId: r.employee_id ?? "",
     })),
   };

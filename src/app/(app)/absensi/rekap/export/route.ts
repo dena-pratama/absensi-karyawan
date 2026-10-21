@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     r.nik,
     r.name,
     r.roleName,
-    ...days.map((d) => (r.cells[d.date] ? CODE[r.cells[d.date]] : "")),
+    ...days.map((d) => (r.cells[d.date] ? CODE[r.cells[d.date]] : r.elsewhere[d.date] ? `@${r.elsewhere[d.date]}` : "")),
     r.summary.hadir,
     r.summary.sakit,
     r.summary.tidakHadir,

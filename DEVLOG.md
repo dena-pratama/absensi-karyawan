@@ -5,6 +5,96 @@ Format: entri terbaru di paling atas.
 
 ---
 
+## 2026-10-22 — Backup karyawan, mutasi bertanggal efektif, SPV banyak cabang
+
+**Keputusan user:**
+1. Karyawan backup dihitung di **cabang tujuan**.
+2. Backup dibuat admin (web) dan SPV (app).
+3. SPV tidak absen sendiri.
+4. Backup memakai rentang tanggal, seringnya 1 hari.
+
+**Database** — migrasi `supabase/migrations/20261022000000_backup_and_multi_branch_spv.sql` (**sudah dijalankan user** setelah perbaikan `uuid[]`; menu Backup Karyawan tampil):
+- `app_user_branch` (cabang SPV, boleh > 1; data lama dipindahkan) + fungsi `my_branch_ids()`. `app_user.branch_id` tetap ada sebagai cabang utama.
+- `employee_backup` (karyawan, cabang asal [otomatis], cabang tujuan, tanggal mulai/selesai, keterangan):
+  - trigger menolak rentang tumpang tindih & cabang sama;
+  - maks. 93 hari;
+  - perubahan tercatat di audit log.
+- Fungsi `home_branch_on()` & `employee_branch_on()`.
+- RLS SPV dari 1 cabang menjadi daftar cabang:
+  - SPV juga melihat karyawan / penempatan / foto karyawan backup yang masuk, dan absensi karyawannya yang sedang backup;
+  - SPV boleh mengelola backup yang masuk / keluar cabangnya;
+  - semua akun terdaftar boleh membaca daftar cabang (untuk memilih cabang tujuan).
+- `attendance_check()`:
+  - check in boleh di cabang asal **atau** cabang backup hari ini (terdekat dalam radius), dan dicatat di cabang itu;
+  - check out memakai cabang check in;
+  - urutan validasi diperbaiki (cek "belum absen masuk" sebelum cek jarak);
+  - penempatan dibaca yang berlaku pada tanggal itu.
+- `admin_list_users()` + kolom `branch_ids`.
+- Dicek dengan parser Postgres (`plpgsql-parser`): 61 statement + 3 fungsi plpgsql, 0 error sintaks.
+- **Fix setelah dijalankan user:** error `42883 operator does not exist: uuid = uuid[]`.
+  - Penyebab: `x = any ((select my_branch_ids()))` dibaca Postgres sebagai perbandingan per baris subquery.
+  - Perbaikan: diganti `= any ((select my_branch_ids())::uuid[])` (22 tempat).
+- **Diuji di Postgres sungguhan (PGlite)** dengan stub `auth` & `storage`:
+  - ke-9 migrasi berjalan berurutan, dan migrasi ini aman diulang;
+  - trigger backup mengisi cabang asal & menolak tumpang tindih;
+  - `employee_branch_on()` benar;
+  - SPV dengan 2 cabang melihat data yang benar;
+  - `admin_list_users()` mengembalikan `branch_ids`.
+- **`attendance_check()` diuji 6 skenario, semua sesuai:**
+  - pulang sebelum masuk → ditolak;
+  - di luar semua radius → ditolak;
+  - masuk di cabang backup → dicatat di cabang backup;
+  - masuk dua kali → ditolak;
+  - pulang di cabang asal → ditolak (harus di cabang masuk);
+  - pulang di cabang backup → OK.
+
+**Web:**
+- `lib/data/backup.ts`: `getBackups()` dan `getDayRoster()` (karyawan cabang − yang sedang backup keluar + yang backup masuk).
+- **Absensi Harian**: label "Backup dari X" / "Sedang backup di Y". Baris yang sedang backup keluar hanya-lihat dan dilewati "Tandai Semua Hadir". `saveAttendance` memakai roster yang sama.
+- **Rekap Bulanan**:
+  - karyawan backup masuk ikut tampil ("Backup dari X");
+  - hanya absen yang dicatat di cabang ini yang dihitung;
+  - hari yang tercatat di cabang lain ditandai ↗ (CSV: `@KODE`).
+- **Dashboard**: karyawan backup dihitung di cabang tujuan hari itu; penempatan dibaca per tanggal.
+- **Pengaturan → Backup Karyawan** (tab baru, admin):
+  - ringkasan (berlangsung hari ini / terjadwal / 90 hari);
+  - filter periode (aktif / riwayat / semua), cabang, pencarian, dan paginasi;
+  - tambah / edit / hapus lewat modal;
+  - pesan dari trigger ditampilkan apa adanya.
+- **Mutasi bertanggal efektif** (Manajemen Karyawan):
+  - field "Berlaku mulai" saat cabang / jabatan diubah;
+  - tanggal mendatang = **pindah terjadwal** (badge "→ KODE mulai …" di daftar), dengan opsi "Batalkan jadwal pindah";
+  - tidak boleh sebelum awal penempatan saat ini;
+  - data karyawan / cabang membaca penempatan yang berlaku hari ini, bukan "valid_to kosong".
+- **Pengguna & Akses**: SPV memilih beberapa cabang lewat `BranchMultiPicker` (cabang pertama = utama), dan tabel aturan akses diperbarui. Sebelum migrasi, SPV 1 cabang tetap jalan dan > 1 cabang ditolak dengan pesan jelas.
+- **App mobile**: diminta ke session `mobile-login` (tampilan backup untuk karyawan, SPV multi-cabang, dan menu Backup untuk SPV).
+- Verifikasi:
+  - `tsc`, `eslint`, dan `next build` lolos. Build sempat gagal karena `new Date()` sebelum data request-time di halaman backup, lalu diperbaiki dengan `await connection()`.
+  - Alur setelah login belum dites (butuh migrasi & login).
+
+---
+
+## 2026-10-21 — Login pakai username, kata sandi min. 6 karakter
+
+- Permintaan user: akun login tidak harus email, dan kata sandi cukup 6 karakter bebas, supaya karyawan mudah login.
+- Supabase Auth hanya mengenal email untuk login kata sandi, jadi **username disimpan sebagai email internal** `<username>@akun.denaprojects.web.id`. Email ini tidak pernah dipakai mengirim surat. Login dengan email asli (admin) tetap jalan.
+- `lib/login-id.ts` (dipakai web & disalin ke app mobile):
+  - `LOGIN_EMAIL_DOMAIN` — **jangan diubah** setelah ada akun;
+  - `USERNAME_RE` (3–30, huruf/angka/`.`/`-`/`_`, tidak peka huruf besar/kecil) dan `PASSWORD_MIN = 6`;
+  - `toLoginEmail()`, `displayLogin()`, `usernameFromNik()`.
+- Login web:
+  - field **Username / Email** (input teks biasa);
+  - isian invalid langsung ditolak dengan "Username / email atau kata sandi salah." tanpa memanggil Supabase.
+- Tambah Akun:
+  - field Username / Email; username otomatis terisi dari NIK saat memilih karyawan (bila kosong);
+  - kata sandi min. 6 karakter, bebas huruf / angka / simbol.
+- Daftar akun & menu topbar menampilkan username, bukan email internal.
+- App mobile: diminta ke session `mobile-login` untuk menyalin `login-id.ts` dan menyesuaikan layar login.
+- Catatan: kalau Supabase menolak kata sandi 6 karakter, cek **Authentication → Sign In / Providers → Email → Minimum password length** (default Supabase 6).
+- Verifikasi: `tsc`, `eslint`, dan `next build` lolos; `toLoginEmail` dites 8 kasus. Di Browser pane, username tidak valid menampilkan pesan error yang benar.
+
+---
+
 ## 2026-10-21 — Kolom In / Out / Foto In / Foto Out di Absensi Harian
 
 - Permintaan user: tabel Absensi Harian menampilkan detail check in / check out yang diinput karyawan dari app mobile.

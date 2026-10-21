@@ -3,7 +3,8 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { PageBody } from "@/components/shell/page-layout";
 import { getMyAccess } from "@/lib/data/access";
-import { getAttendance, getJobRoles, getRoster } from "@/lib/data/attendance";
+import { getAttendance, getJobRoles } from "@/lib/data/attendance";
+import { getDayRoster } from "@/lib/data/backup";
 import { getCheckDetails } from "@/lib/data/check";
 import { getShellData } from "@/lib/data/shell";
 import { formatTimeWIB, parseDateParam, todayWIB } from "@/lib/format";
@@ -42,7 +43,7 @@ async function Content({ searchParams }: { searchParams: PageProps<"/absensi">["
     );
   }
 
-  const [roster, roles] = await Promise.all([getRoster(activeBranch.id, date), getJobRoles()]);
+  const [roster, roles] = await Promise.all([getDayRoster(activeBranch.id, date), getJobRoles()]);
   const ids = roster.map((r) => r.employeeId);
   const [attendance, checks] = await Promise.all([getAttendance(ids, date), getCheckDetails(ids, date)]);
   const byEmployee = new Map(attendance.map((a) => [a.employeeId, a]));
@@ -58,6 +59,7 @@ async function Content({ searchParams }: { searchParams: PageProps<"/absensi">["
       status: a?.status ?? null,
       note: a?.note ?? "",
       check: checks.byEmployee.get(r.employeeId) ?? null,
+      backup: r.backup,
     };
   });
   const last = attendance.reduce<string | null>((m, a) => (!m || a.updatedAt > m ? a.updatedAt : m), null);
