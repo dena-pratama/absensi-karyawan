@@ -5,6 +5,36 @@ Format: entri terbaru di paling atas.
 
 ---
 
+## 2026-10-22 — Fix: latar pop up tidak menutupi sudut layar
+
+- Feedback user: saat pop up terbuka, sudut-sudut layar tidak rapi / tidak konsisten.
+- Penyebab: shell aplikasi (`(app)/layout.tsx`) memakai `backdrop-blur`. `backdrop-filter` menjadikan shell *containing block* untuk elemen `fixed` di dalamnya, sehingga `fixed inset-0` hanya menutupi kotak shell, bukan layar, dan sudut membulat shell terlihat.
+  - Terbukti di Browser pane: `fixed` di dalam kotak ber-blur berukuran 300×200 (ukuran kotak), sedangkan lewat portal 1280×720 (layar).
+- Perbaikan `components/popup-overlay.tsx`:
+  - `PopupLayer` (latar polos + isi pop up) dan `BodyPortal` merender ke `<body>` lewat `createPortal`;
+  - `useSyncExternalStore` dipakai supaya tidak ada hydration mismatch.
+  - Dipakai `Modal` (semua form Pengaturan) dan penampil foto selfie.
+- Masalah yang sama pada **toast** (notifikasi bawah menempel ke dasar shell, bisa tak terlihat di halaman panjang) ikut diperbaiki: `Toast` di Pengaturan dan toast Absensi Harian lewat `BodyPortal`.
+- Verifikasi: `tsc`, `eslint`, dan `next build` lolos.
+
+---
+
+## 2026-10-22 — Pop up tanpa blur + header Backup Karyawan dirapikan
+
+- Feedback user: pop up (modal input apa pun) jangan pakai blur, cukup pop up normal. Header Backup Karyawan kurang rapi: deskripsi terhimpit, tombol "Tambah Backup" patah 2 baris.
+- Komponen bersama `components/popup-overlay.tsx` (`PopupOverlay`): latar gelap polos tanpa `backdrop-blur` (`black/55`, light mode `black/35`), klik latar = tutup.
+  - Dipakai `Modal` (semua form Pengaturan: karyawan, cabang, backup, jabatan, tambah akun) dan penampil foto selfie di Absensi Harian.
+  - Bayangan modal `shadow-black/80` yang berat di light mode diganti `shadow-2xl` biasa.
+  - Token `--color-scrim` dihapus (tidak terpakai lagi).
+  - Blur di topbar, kartu cabang, dan halaman login tidak diubah (bukan pop up).
+- Header Backup Karyawan:
+  - judul + jumlah penugasan + deskripsi selebar penuh;
+  - di bawahnya satu baris pencarian, filter periode, dan filter cabang;
+  - tombol "Tambah Backup" di kanan, tidak pernah patah baris.
+- Verifikasi: `tsc` + `eslint` lolos; baris filter dicek lewat tiruan di Browser pane (halaman asli butuh login).
+
+---
+
 ## 2026-10-22 — Backup karyawan, mutasi bertanggal efektif, SPV banyak cabang
 
 **Keputusan user:**

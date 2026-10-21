@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { openDatePicker } from "@/components/date-input";
+import { BodyPortal } from "@/components/popup-overlay";
 import { Icon } from "@/components/icon";
 import { saveAttendance, type AttendanceChange } from "@/lib/actions/attendance";
 import { initials, shiftDay } from "@/lib/format";
@@ -464,20 +465,22 @@ export function AttendanceForm({
 
       <PhotoViewer view={photo} onClose={closePhoto} />
 
-      {/* Toast */}
-      <div
-        role="status"
-        aria-live="polite"
-        className={`fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2.5 rounded-lg bg-panel-raised text-gray-100 shadow-2xl flex items-center gap-2.5 transition-all duration-300 z-50 text-xs ${
-          toast ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2 pointer-events-none"
-        }`}
-      >
-        <Icon
-          name={toast?.error ? "error" : "check_circle"}
-          className={`text-[18px] ${toast?.error ? "text-rose-400" : "text-emerald-400"}`}
-        />
-        {toast?.text}
-      </div>
+      {/* Toast (lewat portal: shell ber-blur membuat fixed menempel ke shell) */}
+      <BodyPortal>
+        <div
+          role="status"
+          aria-live="polite"
+          className={`fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2.5 rounded-lg bg-panel-raised text-gray-100 shadow-2xl flex items-center gap-2.5 transition-all duration-300 z-50 text-xs ${
+            toast ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2 pointer-events-none"
+          }`}
+        >
+          <Icon
+            name={toast?.error ? "error" : "check_circle"}
+            className={`text-[18px] ${toast?.error ? "text-rose-400" : "text-emerald-400"}`}
+          />
+          {toast?.text}
+        </div>
+      </BodyPortal>
     </section>
   );
 }

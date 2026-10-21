@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { Icon } from "@/components/icon";
+import { PopupLayer } from "@/components/popup-overlay";
 import type { CheckPoint } from "@/lib/data/check";
 
 export type CheckKind = "in" | "out";
@@ -70,8 +71,7 @@ export function PhotoViewer({ view, onClose }: { view: PhotoView | null; onClose
   const mapUrl = point.lat != null && point.lng != null ? `https://www.google.com/maps?q=${point.lat},${point.lng}` : null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-scrim/80 backdrop-blur-sm" onClick={onClose} />
+    <PopupLayer onClose={onClose}>
       <div
         role="dialog"
         aria-modal="true"
@@ -117,6 +117,6 @@ export function PhotoViewer({ view, onClose }: { view: PhotoView | null; onClose
           </div>
         )}
       </div>
-    </div>
+    </PopupLayer>
   );
 }

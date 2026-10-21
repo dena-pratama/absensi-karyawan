@@ -122,16 +122,19 @@ export function BackupManager({
       </section>
 
       <section aria-labelledby="backup-title" className="bg-panel border border-line rounded-2xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-line flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+        <div className="px-5 py-4 border-b border-line flex flex-col gap-3">
           <div>
-            <h2 id="backup-title" className="text-sm font-bold text-ink">Penugasan Backup Karyawan</h2>
+            <h2 id="backup-title" className="text-sm font-bold text-ink flex items-center gap-2">
+              Penugasan Backup Karyawan
+              <span className="text-[11px] font-mono font-normal text-cyan-300">{filtered.length} Penugasan</span>
+            </h2>
             <p className="text-[11px] text-gray-400 mt-0.5">
-              Karyawan dipinjam sementara ke cabang lain. Selama backup, absensinya dicatat & dihitung di cabang tujuan, lalu otomatis kembali ke
+              Karyawan dipinjam sementara ke cabang lain. Selama backup, absensinya dicatat &amp; dihitung di cabang tujuan, lalu otomatis kembali ke
               cabang asal.
             </p>
           </div>
-          <div className="flex flex-col sm:flex-row gap-2 text-xs">
-            <div className="relative sm:w-48">
+          <div className="flex flex-col md:flex-row md:items-center gap-2 text-xs">
+            <div className="relative md:flex-1 md:max-w-xs">
               <Icon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-[16px] text-gray-500 pointer-events-none" />
               <input
                 type="search"
@@ -158,7 +161,7 @@ export function BackupManager({
             <button
               type="button"
               onClick={openNew}
-              className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-brand hover:bg-brand/90 text-black font-semibold shadow-[0_0_15px_rgba(0,210,255,0.25)] transition"
+              className="md:ml-auto flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-brand hover:bg-brand/90 text-black font-semibold whitespace-nowrap shadow-[0_0_15px_rgba(0,210,255,0.25)] light:shadow-none transition"
             >
               <Icon name="add" className="text-[16px]" />
               Tambah Backup

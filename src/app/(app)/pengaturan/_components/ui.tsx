@@ -2,6 +2,7 @@
 
 import { useEffect, useEffectEvent, useRef } from "react";
 import { Icon } from "@/components/icon";
+import { BodyPortal, PopupLayer } from "@/components/popup-overlay";
 
 /* Gaya input mengikuti modal "Tambah Entitas Baru" di desain. */
 export const inputCls =
@@ -92,14 +93,13 @@ export function Modal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-      <div className="fixed inset-0 bg-scrim/80 backdrop-blur-sm" onClick={onClose} />
+    <PopupLayer onClose={onClose} className="sm:p-6 overflow-y-auto">
       <div
         ref={ref}
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
-        className="relative bg-panel-inset border border-line-strong w-full max-w-2xl rounded-2xl shadow-2xl shadow-black/80 overflow-hidden flex flex-col z-10 my-auto"
+        className="relative bg-panel-inset border border-line-strong w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col z-10 my-auto"
       >
         <div className="px-6 py-4 border-b border-line-strong bg-panel-inset flex items-center justify-between gap-3">
           <div>
@@ -150,7 +150,7 @@ export function Modal({
           </div>
         </form>
       </div>
-    </div>
+    </PopupLayer>
   );
 }
 
@@ -204,19 +204,21 @@ export function ApplyBar({
 
 export function Toast({ toast }: { toast: { text: string; error: boolean } | null }) {
   return (
-    <div
-      role="status"
-      aria-live="polite"
-      className={`fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2.5 rounded-lg bg-panel-raised text-gray-100 shadow-2xl flex items-center gap-2.5 transition-all duration-300 z-[60] text-xs max-w-[90vw] ${
-        toast ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2 pointer-events-none"
-      }`}
-    >
-      <Icon
-        name={toast?.error ? "error" : "check_circle"}
-        className={`text-[18px] ${toast?.error ? "text-rose-400" : "text-emerald-400"}`}
-      />
-      {toast?.text}
-    </div>
+    <BodyPortal>
+      <div
+        role="status"
+        aria-live="polite"
+        className={`fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2.5 rounded-lg bg-panel-raised text-gray-100 shadow-2xl flex items-center gap-2.5 transition-all duration-300 z-[60] text-xs max-w-[90vw] ${
+          toast ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2 pointer-events-none"
+        }`}
+      >
+        <Icon
+          name={toast?.error ? "error" : "check_circle"}
+          className={`text-[18px] ${toast?.error ? "text-rose-400" : "text-emerald-400"}`}
+        />
+        {toast?.text}
+      </div>
+    </BodyPortal>
   );
 }
 
