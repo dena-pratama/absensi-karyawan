@@ -5,6 +5,25 @@ Format: entri terbaru di paling atas.
 
 ---
 
+## 2026-10-22 — Sidebar tetap di tempat + navigasi bawah di mobile
+
+- Feedback user: posisi sidebar naik-turun saat pindah halaman (Dashboard → Absensi), dan di mobile sidebar diminta di bawah.
+- Penyebab naik-turun: di grid shell, sidebar diletakkan **di bawah baris judul halaman**, padahal tinggi judul berbeda per halaman (Absensi punya tab).
+- Penyebab `sticky` sidebar tidak pernah jalan: pembungkus memakai `overflow-x-hidden`, yang menjadikannya wadah scroll sendiri.
+- Perbaikan:
+  - `(app)/layout.tsx`: sidebar `md:row-start-2 md:row-span-2` (langsung di bawah topbar, sejajar judul + isi). `overflow-x-hidden` → `overflow-x-clip`. `backdrop-blur-xl` shell dihapus (shell 95% buram; blur juga penyebab masalah `fixed` kemarin).
+  - `PageHeader` / `PageBody`: kolom kanan saja (`md:col-start-2`), jadi judul sejajar dengan isi.
+  - `sidebar.tsx`:
+    - **mobile** = bilah navigasi tetap di bawah layar (`fixed inset-x-3 bottom-3`, aman untuk notch / gesture bar);
+    - **desktop** = kolom kiri yang `sticky top-7` saat scroll.
+  - Mobile: padding bawah halaman ditambah. Tombol Smart AI, toast, dan bar "Terapkan Pengaturan" dinaikkan supaya tidak tertutup bilah bawah.
+- Verifikasi (tiruan shell dengan kelas yang sama di Browser pane):
+  - desktop 1280px: posisi sidebar **sama (top 145px)** untuk judul pendek & tinggi, dan setelah scroll menempel di top 28px;
+  - mobile 375px: `fixed` di bawah, jarak 12px dari tepi.
+  - `tsc`, `eslint`, dan `next build` lolos.
+
+---
+
 ## 2026-10-22 — Fix: latar pop up tidak menutupi sudut layar
 
 - Feedback user: saat pop up terbuka, sudut-sudut layar tidak rapi / tidak konsisten.

@@ -23,7 +23,7 @@ export function PageHeader({
   below?: React.ReactNode;
 }) {
   return (
-    <div className="row-start-3 md:row-start-2 md:col-span-2 flex flex-col">
+    <div className="md:row-start-2 md:col-start-2 flex flex-col min-w-0">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 text-xs font-medium text-gray-400">
@@ -81,7 +81,7 @@ export function UnderlineTabs({ items }: { items: { label: string; href: string;
 
 export function PageBody({ children }: { children: React.ReactNode }) {
   return (
-    <main className="row-start-4 md:row-start-3 md:col-start-2 flex flex-col gap-7 min-w-0">{children}</main>
+    <main className="md:row-start-3 md:col-start-2 flex flex-col gap-7 min-w-0">{children}</main>
   );
 }
 

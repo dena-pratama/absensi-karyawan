@@ -170,7 +170,7 @@ export function ApplyBar({
 }) {
   const dirty = count > 0;
   return (
-    <div className="sticky bottom-0 z-20 -mx-1 px-1 pt-3 pb-1 bg-shell/95 backdrop-blur border-t border-line flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+    <div className="sticky bottom-[5.25rem] md:bottom-0 z-20 -mx-1 px-1 pt-3 pb-1 bg-shell/95 backdrop-blur border-t border-line flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
       <div className="flex items-center gap-2 text-gray-400">
         <span className={`w-2 h-2 rounded-full ${dirty ? "bg-amber-400" : "bg-emerald-400"}`} />
         {dirty ? `${count} perubahan belum diterapkan` : idleText}
@@ -208,7 +208,7 @@ export function Toast({ toast }: { toast: { text: string; error: boolean } | nul
       <div
         role="status"
         aria-live="polite"
-        className={`fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2.5 rounded-lg bg-panel-raised text-gray-100 shadow-2xl flex items-center gap-2.5 transition-all duration-300 z-[60] text-xs max-w-[90vw] ${
+        className={`fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 px-4 py-2.5 rounded-lg bg-panel-raised text-gray-100 shadow-2xl flex items-center gap-2.5 transition-all duration-300 z-[60] text-xs max-w-[90vw] ${
           toast ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2 pointer-events-none"
         }`}
       >

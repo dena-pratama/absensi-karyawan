@@ -470,7 +470,7 @@ export function AttendanceForm({
         <div
           role="status"
           aria-live="polite"
-          className={`fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2.5 rounded-lg bg-panel-raised text-gray-100 shadow-2xl flex items-center gap-2.5 transition-all duration-300 z-50 text-xs ${
+          className={`fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 px-4 py-2.5 rounded-lg bg-panel-raised text-gray-100 shadow-2xl flex items-center gap-2.5 transition-all duration-300 z-50 text-xs ${
             toast ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2 pointer-events-none"
           }`}
         >

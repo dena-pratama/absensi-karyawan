@@ -70,7 +70,7 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
         <Svg paths={item.paths} className={active ? "w-5 h-5 stroke-[2.2]" : "w-5 h-5"} />
       </span>
       {active && (
-        <span className="absolute -bottom-3 md:static w-1.5 h-1.5 bg-brand rounded-full md:mt-1.5 shadow-[0_0_6px_#00d2ff]" />
+        <span className="absolute -bottom-1.5 md:static w-1.5 h-1.5 bg-brand rounded-full md:mt-1.5 shadow-[0_0_6px_#00d2ff]" />
       )}
     </Link>
   );
@@ -79,8 +79,10 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
 function SidebarView({ pathname, className, readOnly }: { pathname: string; className: string; readOnly: boolean }) {
   return (
     <aside
+      // Mobile: bilah navigasi tetap di bawah layar. Desktop: kolom kiri, menempel di bawah topbar saat scroll.
       className={`bg-panel border border-line-strong rounded-full shadow-xl flex-shrink-0 flex items-center justify-between
-        flex-row px-6 py-2.5 md:w-16 md:flex-col md:py-6 md:px-3 md:self-start md:sticky md:top-7 ${className}`}
+        fixed z-40 inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] flex-row px-6 py-2
+        md:static md:z-auto md:w-16 md:flex-col md:py-6 md:px-3 md:self-start md:sticky md:top-7 ${className}`}
     >
       <nav aria-label="Navigasi utama" className="flex flex-row md:flex-col items-center gap-6">
         {(readOnly ? MAIN_NAV.filter((i) => VIEWER_HREFS.has(i.href)) : MAIN_NAV).map((item) => (

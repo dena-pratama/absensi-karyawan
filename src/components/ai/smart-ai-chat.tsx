@@ -137,7 +137,7 @@ export function SmartAiChat() {
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-controls="smart-ai-panel"
-        className={`fixed bottom-5 right-5 z-[70] flex items-center gap-2 rounded-full pl-3.5 pr-4 py-3 font-semibold text-sm text-black bg-gradient-to-r from-brand to-teal-300 shadow-[0_0_25px_rgba(0,210,255,0.45)] hover:brightness-105 active:scale-[0.98] transition ${
+        className={`fixed bottom-24 md:bottom-5 right-5 z-[70] flex items-center gap-2 rounded-full pl-3.5 pr-4 py-3 font-semibold text-sm text-black bg-gradient-to-r from-brand to-teal-300 shadow-[0_0_25px_rgba(0,210,255,0.45)] hover:brightness-105 active:scale-[0.98] transition ${
           open ? "opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto" : ""
         }`}
       >
