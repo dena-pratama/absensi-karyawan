@@ -33,6 +33,7 @@ type AssignmentRow = {
 
 type AttendanceRow = {
   employee_id: string;
+  branch_id: string;
   status: AttendanceStatus;
   updated_at: string;
 };
@@ -40,7 +41,7 @@ type AttendanceRow = {
 /**
  * Rekap kehadiran hari ini per cabang.
  * Roster = penempatan yang berlaku pada tanggal itu dari karyawan yang masih aktif;
- * karyawan yang sedang backup dihitung di cabang tujuan.
+ * karyawan dihitung di cabang tempat absen hari itu (backup / SPV di outlet lain).
  */
 export async function getDashboardStats(branches: BranchSummary[], date: string): Promise<BranchStats[]> {
   const supabase = await createClient();
@@ -51,7 +52,7 @@ export async function getDashboardStats(branches: BranchSummary[], date: string)
       .lte("valid_from", date)
       .or(`valid_to.is.null,valid_to.gte.${date}`)
       .eq("employee.is_active", true),
-    supabase.from("attendance_daily").select("employee_id, status, updated_at").eq("attendance_date", date),
+    supabase.from("attendance_daily").select("employee_id, branch_id, status, updated_at").eq("attendance_date", date),
     getBackups({ from: date, to: date }),
   ]);
   if (assignRes.error) throw new Error(`Gagal memuat penempatan karyawan: ${assignRes.error.message}`);
@@ -65,7 +66,8 @@ export async function getDashboardStats(branches: BranchSummary[], date: string)
   for (const row of (assignRes.data ?? []) as unknown as AssignmentRow[]) {
     if (!row.employee) continue;
     const att = attendance.get(row.employee_id);
-    const branchId = backupTo.get(row.employee_id) ?? row.branch_id;
+    // Cabang tempat absen hari itu (mis. SPV di outlet lain) > cabang backup > penempatan
+    const branchId = att?.branch_id ?? backupTo.get(row.employee_id) ?? row.branch_id;
     const list = staffByBranch.get(branchId) ?? [];
     list.push({
       employeeId: row.employee_id,

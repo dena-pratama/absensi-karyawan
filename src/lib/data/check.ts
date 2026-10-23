@@ -1,6 +1,7 @@
 import "server-only";
 import { formatTimeWIB } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
+import { getBranchCodes } from "./backup";
 
 /** Bucket privat foto selfie (migrasi attendance_check_in_out). */
 const SELFIE_BUCKET = "attendance-selfie";
@@ -16,12 +17,16 @@ export type CheckPoint = {
   distanceM: number | null;
   accuracyM: number | null;
   photoUrl: string | null; // signed URL, null bila foto tidak bisa dibuka
+  /** Kode outlet bila berbeda dari cabang baris absensi (mis. SPV pulang dari outlet lain). */
+  branchCode: string | null;
 };
 
 export type CheckDetail = { in: CheckPoint | null; out: CheckPoint | null };
 
 type Row = {
   employee_id: string;
+  branch_id: string;
+  check_out_branch_id?: string | null; // ada setelah migrasi spv_attendance
   check_in_at: string | null;
   check_in_lat: number | null;
   check_in_lng: number | null;
@@ -37,7 +42,7 @@ type Row = {
 };
 
 const COLUMNS =
-  "employee_id, check_in_at, check_in_lat, check_in_lng, check_in_accuracy_m, check_in_distance_m, check_in_photo, " +
+  "employee_id, branch_id, check_in_at, check_in_lat, check_in_lng, check_in_accuracy_m, check_in_distance_m, check_in_photo, " +
   "check_out_at, check_out_lat, check_out_lng, check_out_accuracy_m, check_out_distance_m, check_out_photo";
 
 /**
@@ -53,17 +58,23 @@ export async function getCheckDetails(
   if (employeeIds.length === 0) return { ready: true, byEmployee };
 
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("attendance_daily")
-    .select(COLUMNS)
-    .in("employee_id", employeeIds)
-    .eq("attendance_date", date)
-    .or("check_in_at.not.is.null,check_out_at.not.is.null");
+  const query = (cols: string) =>
+    supabase
+      .from("attendance_daily")
+      .select(cols)
+      .in("employee_id", employeeIds)
+      .eq("attendance_date", date)
+      .or("check_in_at.not.is.null,check_out_at.not.is.null");
+  // Coba dengan kolom outlet check out; sebelum migrasi spv_attendance kolom itu belum ada.
+  let res = await query(`${COLUMNS}, check_out_branch_id`);
+  if (res.error?.code === "42703") res = await query(COLUMNS);
+  const { data, error } = res;
   if (error) {
-    if (error.code === "42703") return { ready: false, byEmployee }; // kolom belum ada
+    if (error.code === "42703") return { ready: false, byEmployee }; // kolom check-in/out belum ada
     throw new Error(`Gagal memuat check in / out: ${error.message}`);
   }
   const rows = (data ?? []) as unknown as Row[];
+  const codes = rows.some((r) => r.check_out_branch_id && r.check_out_branch_id !== r.branch_id) ? await getBranchCodes() : null;
 
   const paths = rows.flatMap((r) => [r.check_in_photo, r.check_out_photo]).filter((p): p is string => Boolean(p));
   const urls = new Map<string, string>();
@@ -79,13 +90,24 @@ export async function getCheckDetails(
     distanceM: number | null,
     accuracyM: number | null,
     photo: string | null,
+    branchCode: string | null = null,
   ): CheckPoint | null =>
-    at ? { at, time: formatTimeWIB(at), lat, lng, distanceM, accuracyM, photoUrl: photo ? (urls.get(photo) ?? null) : null } : null;
+    at
+      ? { at, time: formatTimeWIB(at), lat, lng, distanceM, accuracyM, photoUrl: photo ? (urls.get(photo) ?? null) : null, branchCode }
+      : null;
 
   for (const r of rows) {
     byEmployee.set(r.employee_id, {
       in: point(r.check_in_at, r.check_in_lat, r.check_in_lng, r.check_in_distance_m, r.check_in_accuracy_m, r.check_in_photo),
-      out: point(r.check_out_at, r.check_out_lat, r.check_out_lng, r.check_out_distance_m, r.check_out_accuracy_m, r.check_out_photo),
+      out: point(
+        r.check_out_at,
+        r.check_out_lat,
+        r.check_out_lng,
+        r.check_out_distance_m,
+        r.check_out_accuracy_m,
+        r.check_out_photo,
+        r.check_out_branch_id && r.check_out_branch_id !== r.branch_id ? (codes?.get(r.check_out_branch_id) ?? "-") : null,
+      ),
     });
   }
   return { ready: true, byEmployee };

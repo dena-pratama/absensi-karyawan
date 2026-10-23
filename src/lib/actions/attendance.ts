@@ -39,9 +39,9 @@ export async function saveAttendance(
   const userId = auth?.claims?.sub;
   if (!userId) return { ok: false, error: "Sesi berakhir. Silakan masuk kembali." };
 
-  // Karyawan yang sedang backup di cabang lain diabsen di cabang tujuan, bukan di sini.
+  // Karyawan yang hari itu backup / absen di cabang lain diabsen di cabang itu, bukan di sini.
   const roster = new Map(
-    (await getDayRoster(branchId, date)).filter((r) => r.backup?.kind !== "out").map((r) => [r.employeeId, r]),
+    (await getDayRoster(branchId, date)).filter((r) => r.backup?.kind !== "out" && r.backup?.kind !== "elsewhere").map((r) => [r.employeeId, r]),
   );
 
   const rows = [];

@@ -85,33 +85,68 @@ export async function getBackups(opts: { from?: string; to?: string; branchId?: 
   };
 }
 
-/** in = karyawan cabang lain yang di-backup ke sini; out = karyawan cabang ini yang sedang backup di cabang lain. */
-export type DayBackup = { kind: "in" | "out"; branchCode: string };
+/**
+ * Status lokasi karyawan pada hari itu, relatif ke cabang yang sedang dilihat:
+ * - in        = karyawan cabang lain yang di-backup ke sini
+ * - out       = karyawan cabang ini yang sedang backup di cabang lain (hanya-lihat)
+ * - visit     = karyawan cabang lain (mis. SPV) yang absen di sini hari itu
+ * - elsewhere = karyawan cabang ini yang absen di cabang lain hari itu (hanya-lihat)
+ * branchCode = cabang lawan (asal untuk in/visit, tujuan untuk out/elsewhere).
+ */
+export type DayBackup = { kind: "in" | "out" | "visit" | "elsewhere"; branchCode: string };
 export type DayRosterEntry = RosterEntry & { backup: DayBackup | null };
 
+/** Peta id → kode cabang. SPV hanya bisa membaca cabangnya, jadi dilengkapi dari backup_branch_options(). */
+export async function getBranchCodes(): Promise<Map<string, string>> {
+  const supabase = await createClient();
+  const [{ data: rows }, { data: opts }] = await Promise.all([
+    supabase.from("branch").select("id, code"),
+    supabase.rpc("backup_branch_options"),
+  ]);
+  const codes = new Map<string, string>();
+  for (const b of [...((rows ?? []) as { id: string; code: string }[]), ...((opts ?? []) as { id: string; code: string }[])]) {
+    codes.set(b.id, b.code);
+  }
+  return codes;
+}
+
 /**
- * Daftar karyawan satu cabang untuk satu tanggal:
- * karyawan cabang ini (yang sedang backup keluar ditandai "out") + karyawan backup yang masuk ("in").
- * Absensi karyawan backup dicatat di cabang tujuan.
+ * Daftar karyawan satu cabang untuk satu tanggal. Absensi dicatat & dihitung di cabang
+ * tempat absen, jadi selain karyawan cabang ini ikut tampil karyawan backup yang masuk
+ * dan karyawan cabang lain (mis. SPV) yang sudah absen di sini hari itu.
  */
 export async function getDayRoster(branchId: string, date: string): Promise<DayRosterEntry[]> {
-  const [home, { rows }] = await Promise.all([getRoster(branchId, date), getBackups({ from: date, to: date })]);
+  const supabase = await createClient();
+  const [home, { rows }, { data: att }, codes] = await Promise.all([
+    getRoster(branchId, date),
+    getBackups({ from: date, to: date }),
+    supabase.from("attendance_daily").select("employee_id, branch_id").eq("attendance_date", date),
+    getBranchCodes(),
+  ]);
+  const attBranch = new Map(((att ?? []) as { employee_id: string; branch_id: string }[]).map((a) => [a.employee_id, a.branch_id]));
   const out = new Map(rows.filter((b) => b.fromBranchId === branchId).map((b) => [b.employeeId, b.toCode]));
   const incoming = rows.filter((b) => b.toBranchId === branchId);
-  const visiting = await getRosterForEmployees(
-    incoming.map((b) => b.employeeId),
-    date,
-  );
   const fromCode = new Map(incoming.map((b) => [b.employeeId, b.fromCode]));
   const homeIds = new Set(home.map((r) => r.employeeId));
+  const visitorIds = [...attBranch].filter(([id, b]) => b === branchId && !homeIds.has(id)).map(([id]) => id);
 
-  return [
-    ...home.map((r) => ({
-      ...r,
-      backup: out.has(r.employeeId) ? ({ kind: "out", branchCode: out.get(r.employeeId)! } as const) : null,
-    })),
-    ...visiting
-      .filter((r) => !homeIds.has(r.employeeId))
-      .map((r) => ({ ...r, backup: { kind: "in", branchCode: fromCode.get(r.employeeId) ?? "-" } as const })),
-  ].sort((a, b) => a.nik.localeCompare(b.nik));
+  const others = await getRosterForEmployees(
+    [...new Set([...incoming.map((b) => b.employeeId), ...visitorIds])],
+    date,
+  );
+
+  const homeRows: DayRosterEntry[] = home.map((r) => {
+    if (out.has(r.employeeId)) return { ...r, backup: { kind: "out", branchCode: out.get(r.employeeId)! } };
+    const at = attBranch.get(r.employeeId);
+    if (at && at !== branchId) return { ...r, backup: { kind: "elsewhere", branchCode: codes.get(at) ?? "-" } };
+    return { ...r, backup: null };
+  });
+  const otherRows: DayRosterEntry[] = others
+    .filter((r) => !homeIds.has(r.employeeId))
+    .map((r) =>
+      fromCode.has(r.employeeId)
+        ? { ...r, backup: { kind: "in", branchCode: fromCode.get(r.employeeId) ?? "-" } }
+        : { ...r, backup: { kind: "visit", branchCode: codes.get(r.branchId) ?? "-" } },
+    );
+  return [...homeRows, ...otherRows].sort((a, b) => a.nik.localeCompare(b.nik));
 }

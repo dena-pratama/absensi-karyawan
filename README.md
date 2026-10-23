@@ -178,6 +178,8 @@ Jalankan file berikut **berurutan** di **Supabase → SQL Editor**:
 | 7 | `supabase/migrations/20261021010000_branch_geofence.sql` | Area GPS absen per cabang (titik + radius) untuk app mobile. |
 | 8 | `supabase/migrations/20261021020000_attendance_check_in_out.sql` | Check in / check out dari app mobile (GPS + selfie, foto privat). |
 | 9 | `supabase/migrations/20261022000000_backup_and_multi_branch_spv.sql` | Backup karyawan antar cabang, SPV banyak cabang, check in di cabang backup. |
+| 10 | `supabase/migrations/20261022010000_branch_visibility_fix.sql` | Karyawan hanya melihat cabangnya; pilihan cabang tujuan backup lewat fungsi khusus SPV/admin. |
+| 11 | `supabase/migrations/20261024000000_spv_attendance.sql` | SPV ikut absen di app dengan memilih outlet; outlet check out dicatat. |
 | — | `supabase/seed_demo.sql` | *Opsional* — data demo (cabang & karyawan fiktif). |
 
 > **Instalasi baru:** jalankan migrasi #6 **setelah** membuat akun admin pertama (langkah 2), atau jalankan ulang file itu setelahnya. Selama tabel `app_user` masih kosong, akun yang sudah ada otomatis dijadikan admin.

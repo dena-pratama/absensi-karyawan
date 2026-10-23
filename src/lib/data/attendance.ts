@@ -13,6 +13,8 @@ export type RosterEntry = {
   joinDate: string | null;
   roleId: string;
   roleName: string;
+  /** Cabang penempatan (bukan cabang backup / tempat absen). */
+  branchId: string;
 };
 
 export type AttendanceEntry = {
@@ -27,6 +29,7 @@ export type AttendanceEntry = {
 
 type AssignmentRow = {
   employee_id: string;
+  branch_id: string;
   job_role_id: string;
   employee: {
     nik: string;
@@ -81,7 +84,7 @@ async function queryRoster(
   let q = supabase
     .from("employee_assignment")
     .select(
-      "employee_id, job_role_id, employee:employee_id!inner(nik, full_name, phone_wa, contract_type, join_date), job_role:job_role_id(name)",
+      "employee_id, branch_id, job_role_id, employee:employee_id!inner(nik, full_name, phone_wa, contract_type, join_date), job_role:job_role_id(name)",
     )
     .eq("employee.is_active", true)
     .lte("valid_from", to)
@@ -106,6 +109,7 @@ async function queryRoster(
       joinDate: row.employee.join_date,
       roleId: row.job_role_id,
       roleName: row.job_role?.name ?? "-",
+      branchId: row.branch_id,
     });
   }
   return roster.sort((a, b) => a.nik.localeCompare(b.nik));

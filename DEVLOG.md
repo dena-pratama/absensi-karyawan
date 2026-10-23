@@ -5,6 +5,60 @@ Format: entri terbaru di paling atas.
 
 ---
 
+## 2026-10-24 — Pencarian di pilihan karyawan
+
+Permintaan user: di Pengguna & Akses, pilih karyawan bisa dicari, tidak perlu scroll.
+- Komponen baru `pengaturan/_components/search-select.tsx`: menu dengan kotak cari (nama / NIK / cabang),
+  keyboard ↑ ↓ Enter Esc, opsi yang sudah dipakai akun lain tampil redup "sudah dipakai".
+- Dipakai di Pengguna & Akses (kolom karyawan & "Absen sebagai" SPV di tabel, dan modal Tambah Akun)
+  serta modal Backup Karyawan. Validasi "wajib pilih karyawan" tetap di server action.
+- `tsc` & `eslint` lolos. Belum dicek di browser (halaman perlu login).
+
+---
+
+## 2026-10-24 — Absen untuk SPV dengan pilihan outlet
+
+**Keputusan user** (mengganti keputusan 2026-10-22 "SPV tidak absen"):
+- SPV absen lewat app HP (GPS + selfie) dan memilih outlet tempat absen;
+- check out **boleh di outlet lain**;
+- rekap & dashboard dihitung di **outlet tempat check in**.
+
+**Database** — migrasi `supabase/migrations/20261024000000_spv_attendance.sql` (**belum dijalankan**):
+- `my_employee_id()` juga untuk role `spv` yang terhubung ke data karyawan → SPV bisa unggah selfie & membaca datanya sendiri lewat policy yang sudah ada.
+- Kolom `attendance_daily.check_out_branch_id` (outlet check out), dikunci trigger seperti kolom check-in/out lain.
+- `attendance_check(..., p_branch uuid default null)`:
+  - versi 6 parameter di-drop supaya tidak ada overload ambigu; panggilan lama tetap jalan;
+  - outlet diizinkan: penempatan + backup hari ini, plus SPV: `my_branch_ids()`;
+  - SPV pulang boleh di outlet mana pun miliknya; karyawan tetap di cabang check in;
+  - pesan jelas bila akun belum terhubung ke data karyawan / data belum punya penempatan.
+- Diuji di Postgres (PGlite), 11 migrasi + ulang:
+  - SPV pilih outlet bukan miliknya → ditolak;
+  - pilih B tapi berdiri di C → di luar radius;
+  - pilih C di C → OK (dicatat di C);
+  - masuk dua kali → ditolak;
+  - pulang pilih B di B → OK (`check_out_branch_id` = B);
+  - karyawan: pilih cabang lain → ditolak; masuk & pulang di A OK; pulang di B → ditolak.
+
+**Web:**
+- **Pengguna & Akses**:
+  - SPV punya pilihan "Absen sebagai: <data karyawan>" (opsional, di tabel & modal Tambah Akun);
+  - satu data karyawan hanya untuk satu akun (karyawan / SPV).
+  - **Bug ikut diperbaiki:** regex pengambil NIK untuk username otomatis kehilangan backslash, sehingga username terisi "nama+NIK". Sekarang `/\(([^)]+)\)$/` lagi.
+- **Absensi Harian / roster** (`getDayRoster`): status lokasi hari itu kini 4 jenis:
+  - `in` = backup masuk;
+  - `out` = sedang backup keluar;
+  - `visit` = karyawan cabang lain (mis. SPV) yang absen di sini → "Absen di sini · dari X";
+  - `elsewhere` = karyawan cabang ini yang absen di cabang lain → "Absen di Y", hanya-lihat & dilewati "Tandai Semua Hadir" / simpan.
+- `getBranchCodes()`: peta id → kode (SPV dilengkapi dari `backup_branch_options()`).
+- **Rekap**: karyawan yang absen di cabang ini ikut tampil ("Absen di sini dari X"), dan hanya hari di cabang ini yang dihitung.
+- **Dashboard**: cabang hitungan = cabang tempat absen hari itu > cabang backup > penempatan.
+- **Kolom Out**: bila outlet check out berbeda, tampil "di KODE · jarak", dan penampil foto menampilkan baris "Outlet". `getCheckDetails` tetap jalan sebelum migrasi (fallback tanpa kolom baru).
+- `RosterEntry.branchId` (cabang penempatan) ditambahkan.
+- **App mobile**: diminta ke session `mobile-login` (layar Absen SPV + pemilih outlet terdekat, riwayat outlet).
+- Verifikasi: `tsc`, `eslint`, dan `next build` lolos.
+
+---
+
 ## 2026-10-22 — Tanda pisah panjang (—) dihapus dari teks tampilan
 
 - Feedback user: teks "Mode lihat saja — absensi diisi …" terlihat jelek karena tanda pisah panjang.

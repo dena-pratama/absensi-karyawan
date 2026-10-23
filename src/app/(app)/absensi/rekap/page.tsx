@@ -191,7 +191,12 @@ async function Content({ searchParams }: { searchParams: PageProps<"/absensi/rek
                       <span className="block font-bold text-slate-100 truncate">{r.name}</span>
                       <span className="block text-[10px] text-cyan-400/90 font-medium truncate">
                         {r.roleName}
-                        {r.backupFrom && <span className="text-purple-300"> · Backup dari {r.backupFrom}</span>}
+                        {r.origin && (
+                          <span className="text-purple-300">
+                            {" "}
+                            · {r.origin.kind === "backup" ? "Backup" : "Absen di sini"} dari {r.origin.code}
+                          </span>
+                        )}
                       </span>
                     </span>
                   </Link>

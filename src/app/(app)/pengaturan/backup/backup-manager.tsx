@@ -8,6 +8,7 @@ import { deleteBackup, saveBackup, type BackupInput } from "@/lib/actions/backup
 import type { BackupRow } from "@/lib/data/backup";
 import { formatDateLong } from "@/lib/format";
 import { Field, Modal, Pagination, SelectBox, Toast, filterCls, inputCls, useToastTimer } from "../_components/ui";
+import { SearchSelect } from "../_components/search-select";
 
 type EmployeeOption = { id: string; label: string; sub: string; branchId: string };
 type Option = { id: string; label: string };
@@ -267,14 +268,12 @@ export function BackupManager({
         {editing && (
           <>
             <Field label="Karyawan" hint={editingEmployee ? `Cabang asal: ${editingEmployee.sub}` : "Dipilih dari karyawan aktif yang sudah ditempatkan."}>
-              <SelectBox value={editing.employeeId} onChange={(e) => setEditing({ ...editing, employeeId: e.target.value })} required>
-                <option value="">Pilih karyawan…</option>
-                {employees.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.label} · {e.sub}
-                  </option>
-                ))}
-              </SelectBox>
+              <SearchSelect
+                value={editing.employeeId}
+                options={employees}
+                onChange={(id) => setEditing({ ...editing, employeeId: id })}
+                placeholder="Pilih karyawan…"
+              />
             </Field>
             <Field label="Cabang tujuan">
               <SelectBox value={editing.toBranchId} onChange={(e) => setEditing({ ...editing, toBranchId: e.target.value })} required>

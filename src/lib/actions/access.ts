@@ -67,7 +67,7 @@ export async function saveUserAccess(changes: AccessChange[]): Promise<AccessRes
             user_id: c.userId,
             role: c.role,
             branch_id: c.role === "spv" ? c.branchIds[0] : null,
-            employee_id: c.role === "karyawan" ? c.employeeId : null,
+            employee_id: c.role === "karyawan" || c.role === "spv" ? c.employeeId || null : null,
           },
           { onConflict: "user_id" },
         )
@@ -127,7 +127,7 @@ export async function createUserAccount(input: NewAccount): Promise<CreateResult
     user_id: data.user.id,
     role: input.role,
     branch_id: input.role === "spv" ? input.branchIds[0] : null,
-    employee_id: input.role === "karyawan" ? input.employeeId : null,
+    employee_id: input.role === "karyawan" || input.role === "spv" ? input.employeeId || null : null,
   });
   const branchError = roleError ? null : await syncSpvBranches(supabase, data.user.id, input.role === "spv" ? input.branchIds : []);
   if (roleError || branchError) {

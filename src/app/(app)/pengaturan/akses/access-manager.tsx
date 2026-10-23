@@ -9,6 +9,7 @@ import { APP_ROLE_LABEL, type AppRole } from "@/lib/labels";
 import { PASSWORD_MIN, USERNAME_HINT, usernameFromNik } from "@/lib/login-id";
 import { ApplyBar, ChangeBadge, Field, Modal, Pagination, SelectBox, Toast, filterCls, inputCls, useToastTimer } from "../_components/ui";
 import { useStaged } from "../_components/staged";
+import { SearchSelect } from "../_components/search-select";
 import { BranchMultiPicker } from "./branch-multi-picker";
 
 type UserRow = UserAccess & { createdLabel: string | null; lastSignInLabel: string | null };
@@ -32,7 +33,7 @@ const MATRIX: { area: string; admin: string; spv: string; karyawan: string }[] =
   { area: "Panel web: Laporan & Pengaturan", admin: "Penuh", spv: "-", karyawan: "-" },
   { area: "Data karyawan & penempatan", admin: "Baca & ubah", spv: "Baca, cabang-cabangnya", karyawan: "Baca, dirinya" },
   { area: "Data cabang", admin: "Baca & ubah", spv: "Baca, cabang-cabangnya", karyawan: "Baca, cabang-cabangnya" },
-  { area: "Absensi harian (app mobile)", admin: "Baca & ubah", spv: "Isi/ubah cabang-cabangnya (s/d hari ini)", karyawan: "Isi/ubah miliknya, hari ini" },
+  { area: "Absensi harian (app mobile)", admin: "Baca & ubah", spv: "Isi/ubah cabang-cabangnya (s/d hari ini) + absen sendiri di outlet pilihan", karyawan: "Isi/ubah miliknya, hari ini" },
   { area: "Penugasan backup karyawan", admin: "Buat & ubah (web)", spv: "Buat & ubah (app), cabang-cabangnya", karyawan: "Lihat miliknya" },
   { area: "Master jabatan & cluster", admin: "Baca & ubah", spv: "Baca", karyawan: "Baca" },
   { area: "Log perubahan, konektor AI, hak akses", admin: "Penuh", spv: "-", karyawan: "-" },
@@ -71,7 +72,10 @@ export function AccessManager({
     { admin: 0, spv: 0, karyawan: 0, "": 0 },
   );
   // Satu data karyawan hanya boleh terhubung ke satu akun.
-  const takenEmployee = new Map(staged.rows.filter((r) => r.role === "karyawan" && r.employeeId).map((r) => [r.employeeId, r.id]));
+  const takenEmployee = new Map(staged.rows.filter((r) => (r.role === "karyawan" || r.role === "spv") && r.employeeId).map((r) => [r.employeeId, r.id]));
+  /** Opsi karyawan; yang sudah dipakai akun lain (selain `ownerId`) tidak bisa dipilih. */
+  const employeeOptions = (ownerId?: string) =>
+    employees.map((e) => ({ ...e, disabled: takenEmployee.has(e.id) && takenEmployee.get(e.id) !== ownerId }));
 
   // Filter & halaman tabel akun
   const [query, setQuery] = useState("");
@@ -114,7 +118,8 @@ export function AccessManager({
     staged.patch(id, {
       role,
       branchIds: role === "spv" ? (cur?.branchIds ?? []) : [],
-      employeeId: role === "karyawan" ? (cur?.employeeId ?? "") : "",
+      // SPV boleh tetap terhubung ke data karyawannya (untuk absen lewat app).
+      employeeId: role === "karyawan" || role === "spv" ? (cur?.employeeId ?? "") : "",
     });
   };
 
@@ -268,17 +273,25 @@ export function AccessManager({
                       {r.role === "admin" && <span className="text-gray-300">Semua data{isMe && " · akun sendiri tidak bisa diubah"}</span>}
                       {r.role === "" && <span className="text-gray-500">Tidak bisa membaca data apa pun</span>}
                       {r.role === "spv" && (
-                        <BranchMultiPicker value={r.branchIds} options={branches} onChange={(ids) => staged.patch(r.id, { branchIds: ids })} />
+                        <div className="flex flex-col gap-1.5">
+                          <BranchMultiPicker value={r.branchIds} options={branches} onChange={(ids) => staged.patch(r.id, { branchIds: ids })} />
+                          <SearchSelect
+                            value={r.employeeId}
+                            options={employeeOptions(r.id).map((o) => ({ ...o, label: `Absen sebagai: ${o.label}` }))}
+                            onChange={(id) => staged.patch(r.id, { employeeId: id })}
+                            emptyLabel="Tanpa data karyawan (tidak absen)"
+                            label="Data karyawan SPV untuk absen"
+                          />
+                        </div>
                       )}
                       {r.role === "karyawan" && (
-                        <SelectBox value={r.employeeId} onChange={(e) => staged.patch(r.id, { employeeId: e.target.value })} aria-label="Data karyawan">
-                          <option value="">Pilih karyawan…</option>
-                          {employees.map((e) => (
-                            <option key={e.id} value={e.id} disabled={takenEmployee.has(e.id) && takenEmployee.get(e.id) !== r.id}>
-                              {e.label}
-                            </option>
-                          ))}
-                        </SelectBox>
+                        <SearchSelect
+                          value={r.employeeId}
+                          options={employeeOptions(r.id)}
+                          onChange={(id) => staged.patch(r.id, { employeeId: id })}
+                          placeholder="Pilih karyawan…"
+                          label="Data karyawan"
+                        />
                       )}
                     </td>
                   </tr>
@@ -403,24 +416,28 @@ export function AccessManager({
                   <BranchMultiPicker value={account.branchIds} options={branches} onChange={(ids) => setAccount({ ...account, branchIds: ids })} />
                 </Field>
               )}
+              {account.role === "spv" && (
+                <Field label="Data Karyawan SPV (untuk absen)" hint="Wajib bila SPV ikut absen lewat app. Data karyawan harus punya penempatan & jabatan.">
+                  <SearchSelect
+                    value={account.employeeId}
+                    options={employeeOptions()}
+                    onChange={(id) => setAccount({ ...account, employeeId: id })}
+                    emptyLabel="Tanpa data karyawan (SPV tidak absen)"
+                  />
+                </Field>
+              )}
               {account.role === "karyawan" && (
                 <Field label="Data Karyawan" hint="Satu data karyawan hanya untuk satu akun.">
-                  <SelectBox
+                  <SearchSelect
                     value={account.employeeId}
+                    options={employeeOptions()}
                     // Username kosong → isi otomatis dari NIK karyawan yang dipilih.
-                    onChange={(e) => {
-                      const nik = employees.find((x) => x.id === e.target.value)?.label.match(/(([^)]+))$/)?.[1] ?? "";
-                      setAccount({ ...account, employeeId: e.target.value, login: account.login || usernameFromNik(nik) });
+                    onChange={(id) => {
+                      const nik = employees.find((x) => x.id === id)?.label.match(/\(([^)]+)\)$/)?.[1] ?? "";
+                      setAccount({ ...account, employeeId: id, login: account.login || usernameFromNik(nik) });
                     }}
-                    required
-                  >
-                    <option value="">Pilih karyawan…</option>
-                    {employees.map((e) => (
-                      <option key={e.id} value={e.id} disabled={takenEmployee.has(e.id)}>
-                        {e.label}
-                      </option>
-                    ))}
-                  </SelectBox>
+                    placeholder="Pilih karyawan…"
+                  />
                 </Field>
               )}
               {account.role === "admin" && (

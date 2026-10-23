@@ -20,8 +20,14 @@ export function CheckTimeCell({ point }: { point: CheckPoint | null }) {
   return (
     <div className="flex flex-col leading-tight">
       <span className="font-mono font-semibold text-gray-200 whitespace-nowrap">{point.time.replace(" WIB", "")}</span>
-      <span className="text-[10px] text-gray-500 whitespace-nowrap" title="Jarak ke titik cabang saat absen">
-        {meters(point.distanceM)} dari cabang
+      <span className="text-[10px] text-gray-500 whitespace-nowrap" title="Jarak ke titik outlet saat absen">
+        {point.branchCode ? (
+          <>
+            di <span className="font-semibold text-purple-300">{point.branchCode}</span> · {meters(point.distanceM)}
+          </>
+        ) : (
+          <>{meters(point.distanceM)} dari cabang</>
+        )}
       </span>
     </div>
   );
@@ -102,7 +108,13 @@ function PhotoDialog({ view, onClose }: { view: PhotoView; onClose: () => void }
           <img src={point.photoUrl} alt={`Selfie ${KIND_LABEL[view.kind]} ${view.name}`} className="w-full max-h-[60vh] object-contain bg-black" />
         )}
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 px-4 py-3 text-[11px]">
-          <dt className="text-gray-500">Jarak ke cabang</dt>
+          {point.branchCode && (
+            <>
+              <dt className="text-gray-500">Outlet</dt>
+              <dd className="text-purple-300 font-semibold text-right">{point.branchCode}</dd>
+            </>
+          )}
+          <dt className="text-gray-500">Jarak ke outlet</dt>
           <dd className="text-gray-200 text-right">{meters(point.distanceM)}</dd>
           <dt className="text-gray-500">Akurasi GPS</dt>
           <dd className="text-gray-200 text-right">{point.accuracyM == null ? "-" : `±${Math.round(point.accuracyM)} m`}</dd>

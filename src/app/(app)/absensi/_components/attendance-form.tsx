@@ -48,6 +48,17 @@ const AVATAR_RING: Record<string, string> = {
 const control =
   "bg-panel border border-line rounded-lg text-xs text-gray-200 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all";
 
+/** Label lokasi hari itu (lihat DayBackup di lib/data/backup.ts). */
+const BADGE: Record<DayBackup["kind"], (code: string) => string> = {
+  in: (c) => `Backup dari ${c}`,
+  out: (c) => `Sedang backup di ${c}`,
+  visit: (c) => `Absen di sini · dari ${c}`,
+  elsewhere: (c) => `Absen di ${c}`,
+};
+
+/** Karyawan cabang ini yang hari itu diabsen di cabang lain → baris hanya-lihat. */
+const isAway = (r: FormRow) => r.backup?.kind === "out" || r.backup?.kind === "elsewhere";
+
 function toMap(rows: FormRow[]): Record<string, Entry> {
   return Object.fromEntries(rows.map((r) => [r.employeeId, { status: r.status, note: r.note }]));
 }
@@ -149,7 +160,7 @@ export function AttendanceForm({
     setEntries((prev) => {
       const next = { ...prev };
       for (const r of visible) {
-        if (r.backup?.kind === "out") continue; // diabsen di cabang tujuan
+        if (isAway(r)) continue; // diabsen / dihitung di cabang lain
         next[r.employeeId] = { ...next[r.employeeId], status: "hadir" };
       }
       return next;
@@ -312,7 +323,7 @@ export function AttendanceForm({
             {visible.map((r, i) => {
               const e = entries[r.employeeId];
               const tone = e.status ?? "default";
-              const locked = isFuture || readOnly || r.backup?.kind === "out";
+              const locked = isFuture || readOnly || isAway(r);
               return (
                 <tr key={r.employeeId} className={`hover:bg-panel/60 transition-colors group ${ROW_TINT[e.status ?? ""] ?? ""}`}>
                   <td className="py-3 px-3 text-center font-mono text-gray-500 group-hover:text-ink">{i + 1}</td>
@@ -332,11 +343,11 @@ export function AttendanceForm({
                         {r.backup && (
                           <span
                             className={`mt-0.5 self-start text-[9px] font-semibold px-1.5 py-px rounded ${
-                              r.backup.kind === "in" ? "bg-purple-500/15 text-purple-300" : "bg-panel-raised text-gray-400"
+                              isAway(r) ? "bg-panel-raised text-gray-400" : "bg-purple-500/15 text-purple-300"
                             }`}
-                            title={r.backup.kind === "out" ? "Absensi hari ini dicatat di cabang tujuan" : undefined}
+                            title={isAway(r) ? "Absensi hari ini dicatat & dihitung di cabang lain" : undefined}
                           >
-                            {r.backup.kind === "in" ? `Backup dari ${r.backup.branchCode}` : `Sedang backup di ${r.backup.branchCode}`}
+                            {BADGE[r.backup.kind](r.backup.branchCode)}
                           </span>
                         )}
                       </div>
