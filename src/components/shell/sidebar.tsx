@@ -13,6 +13,8 @@ const ICONS = {
     "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4",
   laporan:
     "M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
+  kasbon:
+    "M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z",
   logout:
     "M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1",
 };
@@ -37,11 +39,12 @@ type NavItem = { href: string; label: string; paths: string[]; match: (p: string
 const MAIN_NAV: NavItem[] = [
   { href: "/", label: "Dashboard", paths: [ICONS.dashboard], match: (p) => p === "/" },
   { href: "/absensi", label: "Absensi & Karyawan", paths: [ICONS.absensi], match: (p) => p.startsWith("/absensi") },
-  { href: "/laporan", label: "Laporan Absensi", paths: [ICONS.laporan], match: (p) => p.startsWith("/laporan") },
+  { href: "/laporan", label: "Laporan", paths: [ICONS.laporan], match: (p) => p.startsWith("/laporan") },
+  { href: "/kasbon", label: "Kasbon", paths: [ICONS.kasbon], match: (p) => p.startsWith("/kasbon") },
 ];
 
-/** Menu yang terlihat untuk akun hanya-lihat (sama dengan VIEWER_PATHS di proxy). */
-const VIEWER_HREFS = new Set(["/", "/absensi"]);
+/** Menu untuk akun hanya-lihat (sama dengan VIEWER_PATHS di proxy): tanpa Laporan Absensi. */
+const VIEWER_NAV = MAIN_NAV.filter((i) => i.href !== "/laporan");
 
 const SETTINGS_NAV: NavItem = {
   href: "/pengaturan",
@@ -85,7 +88,7 @@ function SidebarView({ pathname, className, readOnly }: { pathname: string; clas
         md:static md:z-auto md:w-16 md:flex-col md:py-6 md:px-3 md:self-start md:sticky md:top-7 ${className}`}
     >
       <nav aria-label="Navigasi utama" className="flex flex-row md:flex-col items-center gap-6">
-        {(readOnly ? MAIN_NAV.filter((i) => VIEWER_HREFS.has(i.href)) : MAIN_NAV).map((item) => (
+        {(readOnly ? VIEWER_NAV : MAIN_NAV).map((item) => (
           <NavLink key={item.href} item={item} pathname={pathname} />
         ))}
       </nav>
@@ -111,7 +114,7 @@ function SidebarWithPath({ className, readOnly }: { className: string; readOnly:
 }
 
 /** usePathname() butuh Suspense di rute dinamis; fallback = sidebar tanpa state aktif. */
-/** readOnly = akun SPV / karyawan: hanya menu Dashboard & Absensi. */
+/** readOnly = akun SPV / karyawan: menu Dashboard, Absensi & Kasbon. */
 export function Sidebar({ className = "", readOnly = false }: { className?: string; readOnly?: boolean }) {
   return (
     <Suspense fallback={<SidebarView pathname="" className={className} readOnly={readOnly} />}>

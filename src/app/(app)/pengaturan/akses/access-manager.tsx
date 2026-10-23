@@ -35,6 +35,7 @@ const MATRIX: { area: string; admin: string; spv: string; karyawan: string }[] =
   { area: "Data cabang", admin: "Baca & ubah", spv: "Baca, cabang-cabangnya", karyawan: "Baca, cabang-cabangnya" },
   { area: "Absensi harian (app mobile)", admin: "Baca & ubah", spv: "Isi/ubah cabang-cabangnya (s/d hari ini) + absen sendiri di outlet pilihan", karyawan: "Isi/ubah miliknya, hari ini" },
   { area: "Penugasan backup karyawan", admin: "Buat & ubah (web)", spv: "Buat & ubah (app), cabang-cabangnya", karyawan: "Lihat miliknya" },
+  { area: "Kasbon (web & app)", admin: "Setujui, cairkan, atur gaji + ajukan sendiri", spv: "Ajukan & lihat miliknya", karyawan: "Ajukan & lihat miliknya" },
   { area: "Master jabatan & cluster", admin: "Baca & ubah", spv: "Baca", karyawan: "Baca" },
   { area: "Log perubahan, konektor AI, hak akses", admin: "Penuh", spv: "-", karyawan: "-" },
 ];
@@ -72,7 +73,7 @@ export function AccessManager({
     { admin: 0, spv: 0, karyawan: 0, "": 0 },
   );
   // Satu data karyawan hanya boleh terhubung ke satu akun.
-  const takenEmployee = new Map(staged.rows.filter((r) => (r.role === "karyawan" || r.role === "spv") && r.employeeId).map((r) => [r.employeeId, r.id]));
+  const takenEmployee = new Map(staged.rows.filter((r) => r.role && r.employeeId).map((r) => [r.employeeId, r.id]));
   /** Opsi karyawan; yang sudah dipakai akun lain (selain `ownerId`) tidak bisa dipilih. */
   const employeeOptions = (ownerId?: string) =>
     employees.map((e) => ({ ...e, disabled: takenEmployee.has(e.id) && takenEmployee.get(e.id) !== ownerId }));
@@ -118,8 +119,8 @@ export function AccessManager({
     staged.patch(id, {
       role,
       branchIds: role === "spv" ? (cur?.branchIds ?? []) : [],
-      // SPV boleh tetap terhubung ke data karyawannya (untuk absen lewat app).
-      employeeId: role === "karyawan" || role === "spv" ? (cur?.employeeId ?? "") : "",
+      // Admin & SPV boleh tetap terhubung ke data karyawannya (kasbon / absen lewat app).
+      employeeId: role ? (cur?.employeeId ?? "") : "",
     });
   };
 
@@ -270,7 +271,21 @@ export function AccessManager({
                       )}
                     </td>
                     <td className="py-3 px-4">
-                      {r.role === "admin" && <span className="text-gray-300">Semua data{isMe && " · akun sendiri tidak bisa diubah"}</span>}
+                      {r.role === "admin" && (
+                        <div className="flex flex-col gap-1.5">
+                          <span className="text-gray-300">Semua data{isMe && " · role akun sendiri tidak bisa diubah"}</span>
+                          <SearchSelect
+                            value={r.employeeId}
+                            options={employeeOptions(r.id)}
+                            onChange={(id) => staged.patch(r.id, { employeeId: id })}
+                            emptyLabel="Admin tidak ikut kasbon"
+                            label="Data karyawan admin untuk kasbon pribadi"
+                          />
+                          <span className="text-[10px] text-gray-500">
+                            Opsional. Pilih data karyawan bila admin ini juga ingin mengajukan kasbon untuk dirinya sendiri.
+                          </span>
+                        </div>
+                      )}
                       {r.role === "" && <span className="text-gray-500">Tidak bisa membaca data apa pun</span>}
                       {r.role === "spv" && (
                         <div className="flex flex-col gap-1.5">
@@ -441,7 +456,14 @@ export function AccessManager({
                 </Field>
               )}
               {account.role === "admin" && (
-                <p className="text-[11px] text-amber-300 self-end pb-2">Admin punya akses penuh ke semua data & pengaturan.</p>
+                <Field label="Data Karyawan (untuk kasbon)" hint="Opsional. Admin punya akses penuh ke semua data & pengaturan.">
+                  <SearchSelect
+                    value={account.employeeId}
+                    options={employeeOptions()}
+                    onChange={(id) => setAccount({ ...account, employeeId: id })}
+                    emptyLabel="Tanpa data karyawan"
+                  />
+                </Field>
               )}
             </div>
           </>

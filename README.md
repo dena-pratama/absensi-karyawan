@@ -58,9 +58,15 @@ Aplikasi ini sengaja dibuat **sederhana**:
 - **Daftar Karyawan** — daftar personil cabang, dengan halaman detail berisi biodata, penempatan, dan grafik tren kehadiran.
 - **Rekap Bulanan** — matriks tanggal × karyawan per bulan, bisa difilter jabatan dan diekspor ke CSV.
 
-### Laporan Absensi
-- Filter rentang tanggal, cabang, karyawan, dan status.
-- Pratinjau di layar, lalu unduh **CSV** atau **PDF** (`@react-pdf/renderer`).
+### Laporan
+- **Laporan Kehadiran**: filter rentang tanggal, cabang, karyawan, dan status. Pratinjau di layar, lalu unduh **CSV** atau **PDF** (`@react-pdf/renderer`).
+- **Laporan Kasbon**: rekap per karyawan & detail kasbon per periode gajian, cabang, dan status, dengan unduhan **CSV**.
+
+### Kasbon (`/kasbon`)
+- Semua role: lihat plafon (gaji pokok ÷ pembagi × HK Hadir di periode gajian), ajukan kasbon, dan riwayat miliknya.
+- Admin: setujui / tolak, cairkan dengan unggah bukti foto (bucket privat `kasbon-proof`), tandai lunas.
+- **Pengaturan Kasbon** (admin): gaji pokok per jabatan & per karyawan, pembagi harian, tanggal cut-off gajian.
+- Pelunasan lewat potong gaji: kasbon yang dicairkan otomatis dianggap lunas setelah periodenya lewat.
 
 ### Pengaturan & Master Data
 - **Manajemen Karyawan**:
@@ -180,6 +186,7 @@ Jalankan file berikut **berurutan** di **Supabase → SQL Editor**:
 | 9 | `supabase/migrations/20261022000000_backup_and_multi_branch_spv.sql` | Backup karyawan antar cabang, SPV banyak cabang, check in di cabang backup. |
 | 10 | `supabase/migrations/20261022010000_branch_visibility_fix.sql` | Karyawan hanya melihat cabangnya; pilihan cabang tujuan backup lewat fungsi khusus SPV/admin. |
 | 11 | `supabase/migrations/20261024000000_spv_attendance.sql` | SPV ikut absen di app dengan memilih outlet; outlet check out dicatat. |
+| 12 | `supabase/migrations/20261025000000_kasbon.sql` | Kasbon: gaji pokok per jabatan / karyawan, pembagi & cut-off gajian, pengajuan → persetujuan → pencairan dengan bukti foto (bucket `kasbon-proof`). |
 | — | `supabase/seed_demo.sql` | *Opsional* — data demo (cabang & karyawan fiktif). |
 
 > **Instalasi baru:** jalankan migrasi #6 **setelah** membuat akun admin pertama (langkah 2), atau jalankan ulang file itu setelahnya. Selama tabel `app_user` masih kosong, akun yang sudah ada otomatis dijadikan admin.

@@ -36,3 +36,15 @@ export const APP_ROLE_LABEL: Record<AppRole, string> = {
   spv: "SPV Cabang",
   karyawan: "Karyawan",
 };
+
+/** Status kasbon (lihat migrasi kasbon). */
+export type KasbonStatus = "diajukan" | "disetujui" | "ditolak" | "dicairkan" | "lunas" | "dibatalkan";
+
+export const KASBON_STATUS_LABEL: Record<KasbonStatus, string> = {
+  diajukan: "Diajukan",
+  disetujui: "Disetujui",
+  ditolak: "Ditolak",
+  dicairkan: "Dicairkan",
+  lunas: "Lunas",
+  dibatalkan: "Dibatalkan",
+};

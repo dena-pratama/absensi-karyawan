@@ -107,3 +107,15 @@ export function formatDateSlash(ymd: string): string {
   const [y, m, d] = ymd.split("-");
   return `${d} / ${m} / ${y}`;
 }
+
+/** "Rp769.230" */
+export function formatRupiah(n: number): string {
+  return `Rp${new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(n)}`;
+}
+
+/** "20 Okt 2026" dari YYYY-MM-DD */
+export function formatDateShort(ymd: string): string {
+  return new Intl.DateTimeFormat("id-ID", { timeZone: "UTC", day: "numeric", month: "short", year: "numeric" }).format(
+    new Date(`${ymd}T00:00:00Z`),
+  );
+}

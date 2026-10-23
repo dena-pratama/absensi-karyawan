@@ -7,6 +7,7 @@ import { getReportData, getReportOptions, type ReportData } from "@/lib/data/rep
 import { formatDateLong, formatDateSlash, todayWIB } from "@/lib/format";
 import { ATTENDANCE_LABEL, type AttendanceStatus } from "@/lib/labels";
 import { parseReportFilters, reportQuery } from "@/lib/report-filters";
+import { LaporanTabs } from "./_components/laporan-tabs";
 import { ReportFilter } from "./report-filter";
 
 export const metadata: Metadata = { title: "Laporan Absensi" };
@@ -16,7 +17,12 @@ const PREVIEW_ROWS = 50;
 export default function LaporanPage({ searchParams }: PageProps<"/laporan">) {
   return (
     <>
-      <PageHeader crumb="Absensi Ekspedisi" current="Laporan Absensi" title="Tarik Data Laporan Absensi" />
+      <PageHeader
+        crumb="Absensi Ekspedisi"
+        current="Laporan Kehadiran"
+        title="Tarik Data Laporan Kehadiran"
+        below={<LaporanTabs active="kehadiran" />}
+      />
       <PageBody>
         <Suspense fallback={<Skeleton />}>
           <Content searchParams={searchParams} />

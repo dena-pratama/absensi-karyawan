@@ -5,6 +5,88 @@ Format: entri terbaru di paling atas.
 
 ---
 
+## 2026-10-24 — Riwayat kasbon di Detail Karyawan
+
+Permintaan user: di Absensi → Daftar Karyawan → detail, tampilkan riwayat kasbon tepat di bawah data karyawan.
+- `getEmployeeKasbon(employeeId)` di `lib/data/kasbon.ts` (+ helper `toQuota`): 10 kasbon terbaru, jumlah total,
+  dan plafon periode berjalan via `kasbon_quota(p_employee)`.
+- Kartu "Riwayat Kasbon" (`absensi/karyawan/[id]/kasbon-history.tsx`) di kolom kiri, tepat di bawah kartu profil:
+  sisa plafon periode ini, nominal belum dipotong gaji, daftar kasbon (nominal, tanggal, keperluan, status, link bukti).
+  Dimuat dengan Suspense sendiri supaya statistik absensi tidak menunggu.
+- Hanya tampil untuk admin atau karyawan itu sendiri. SPV yang melihat karyawan lain tidak melihat kartu ini
+  (RLS kasbon pribadi; tanpa ini kartu akan salah menampilkan "belum ada kasbon").
+- `tsc`, `eslint`, `next build` lolos. Belum dicek di browser (perlu login).
+
+---
+
+## 2026-10-24 — Laporan Kasbon: unduh PDF
+
+Permintaan user: Laporan Kasbon bisa diunduh PDF juga.
+- Logika filter & rekap dipindah ke `lib/kasbon-report.ts` (`buildKasbonReport`, `parseKasbonFilters`, `kasbonFilterQuery`)
+  supaya halaman dan PDF menghasilkan angka yang sama.
+- Route `/laporan/kasbon/export/pdf?period=&branch=&status=&q=` (khusus admin, 403 untuk role lain) + dokumen
+  `kasbon-document.tsx` (A4 landscape, gaya sama dengan PDF Laporan Kehadiran): ringkasan 4 kartu, rekap per karyawan
+  dengan baris total, detail kasbon dengan badge status, nomor halaman.
+- Tombol "Unduh PDF" di samping "Unduh CSV", memakai filter yang sedang aktif.
+- Dicek dengan route uji sementara + data contoh 40 kasbon (sudah dihapus): 3 halaman, angka total cocok.
+  `tsc`, `eslint`, `next build` lolos.
+
+---
+
+## 2026-10-24 — Dropdown tidak terpotong + tata letak Pengaturan Kasbon
+
+Masukan user: dropdown "Tambah karyawan" terpotong kartu, dan halaman pengaturan terlalu memanjang ke bawah.
+- Hook baru `components/use-anchored.ts`: posisi `fixed` menempel ke tombol pemicu, ikut scroll/resize, dan membuka
+  ke atas bila ruang di bawah kurang. `useDismiss` kini menerima beberapa ref (tombol + menu portal).
+- `SearchSelect` & `BranchMultiPicker` me-render menu lewat portal ke <body> (z-70, di atas modal), jadi tidak
+  terpotong `overflow-hidden` kartu / tabel lagi.
+- Pengaturan Kasbon: 2 kolom di desktop (Aturan Plafon di kanan atas permintaan user, posisi biasa tanpa sticky; Gaji per Jabatan & Gaji Khusus
+  di kiri); pemilih karyawan dipindah ke samping judul.
+- Dicek lewat halaman mock sementara (sudah dihapus): menu ada di <body> dan membuka ke atas saat dekat tepi bawah.
+  `tsc` & `eslint` lolos.
+
+---
+
+## 2026-10-24 — Kasbon jadi halaman sendiri + tab Laporan Kasbon
+
+Masukan user: kasbon jangan digabung dengan halaman Laporan; Laporan punya tab Laporan Kehadiran & Laporan Kasbon.
+- Halaman kasbon pindah ke `/kasbon` (tab Pengajuan Kasbon · Pengaturan Kasbon untuk admin), menu sidebar sendiri.
+- `/laporan` = tab **Laporan Kehadiran** (laporan absensi lama) dan **Laporan Kasbon** (`/laporan/kasbon`, admin):
+  filter periode gajian (default periode berjalan) / cabang / status / cari, ringkasan nominal (total, menunggu proses,
+  dicairkan, belum dipotong gaji), tampilan Per Karyawan & Detail, unduh CSV. Ditolak/dibatalkan tidak dihitung.
+- `getKasbonReport()` + helper `toItems()` di `lib/data/kasbon.ts`. Proxy: SPV/karyawan boleh `/kasbon`, ditolak di
+  `/kasbon/pengaturan` & seluruh `/laporan`.
+- `tsc`, `eslint`, `next build` lolos. Belum dicek di browser (perlu login).
+
+---
+
+## 2026-10-24 — Fitur Kasbon (pinjaman gaji di muka)
+
+Permintaan user (lewat sesi mobile). Keputusan user:
+- gaji pokok per jabatan + override per karyawan; pembagi harian & tanggal cut-off diatur admin;
+- plafon = gaji pokok ÷ pembagi × HK (hanya status Hadir) pada periode gajian berjalan;
+- kasbon diajukan/disetujui/dicairkan pada periode berjalan mengurangi sisa plafon; pelunasan = potong gaji
+  (dicairkan + periode lewat = dianggap lunas), admin juga bisa tandai lunas;
+- alur: diajukan → disetujui / ditolak → dicairkan (admin unggah bukti foto) → lunas; pengaju bisa membatalkan;
+- semua role bisa mengajukan untuk dirinya; SPV hanya melihat kasbon miliknya, admin melihat semua.
+
+Perubahan:
+- Migrasi `20261025000000_kasbon.sql` (sudah dijalankan user di Supabase, berhasil): tabel `payroll_setting`, `job_role_salary`,
+  `employee_salary`, `kasbon`; fungsi `my_linked_employee_id`, `payroll_period`, `kasbon_quota`, `kasbon_request`,
+  `kasbon_cancel`, `kasbon_decide`, `kasbon_disburse`, `kasbon_settle`; RLS baca-saja (tulis lewat fungsi);
+  bucket privat `kasbon-proof`. Diuji di PGlite: 21 skenario (periode, plafon, lewat plafon, izin, bukti foto, override) sesuai.
+- Web: menu Laporan punya tab Laporan Absensi · Kasbon · Pengaturan Kasbon (admin). SPV/karyawan melihat menu
+  "Kasbon" saja (`/laporan/kasbon`; proxy menolak `/laporan/kasbon/pengaturan`).
+- Halaman Kasbon: kartu plafon (rumus terlihat), ajukan, riwayat + filter, aksi admin setujui/tolak/cairkan/lunas,
+  lihat bukti. Foto bukti dikompres di browser (≤ 900 KB) sebelum dikirim ke server action.
+- Pengguna & Akses: admin bisa dihubungkan ke data karyawan ("Kasbon sebagai"), termasuk akun sendiri (role tetap admin).
+- Kontrak tabel/RPC/bucket dikirim ke sesi mobile.
+- Revisi (masukan user): menu Kasbon sendiri di sidebar untuk semua role (admin juga), tidak lagi tersembunyi di tab Laporan.
+  Pilihan data karyawan admin diberi teks jelas: "Admin tidak ikut kasbon" + keterangan bahwa ini opsional untuk kasbon pribadi admin.
+- `tsc`, `eslint`, `next build` lolos. Belum dicek di browser (perlu login + migrasi).
+
+---
+
 ## 2026-10-24 — Pencarian di pilihan karyawan
 
 Permintaan user: di Pengguna & Akses, pilih karyawan bisa dicari, tidak perlu scroll.

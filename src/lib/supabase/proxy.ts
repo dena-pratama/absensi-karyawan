@@ -11,8 +11,10 @@ import {
 const PUBLIC_PATHS = ["/login"];
 /** Halaman untuk akun login yang belum diberi role. */
 const DENIED_PATH = "/akses-ditolak";
-/** Halaman yang boleh dibuka SPV / karyawan (hanya-lihat). */
-const VIEWER_PATHS = ["/", "/absensi"];
+/** Halaman yang boleh dibuka SPV / karyawan (hanya-lihat, kecuali ajukan kasbon miliknya). */
+const VIEWER_PATHS = ["/", "/absensi", "/kasbon"];
+/** Sub-halaman khusus admin di dalam VIEWER_PATHS. */
+const ADMIN_ONLY_PATHS = ["/kasbon/pengaturan"];
 
 /** Refresh sesi Supabase di setiap request + redirect sesuai status login. */
 export async function updateSession(request: NextRequest) {
@@ -61,7 +63,7 @@ export async function updateSession(request: NextRequest) {
   if (!isLoggedIn) return isPublic ? response : redirectTo("/login");
   if (isPublic) return redirectTo("/");
 
-  // Admin: semua halaman. SPV / karyawan: hanya-lihat Dashboard + menu Absensi.
+  // Admin: semua halaman. SPV / karyawan: hanya-lihat Dashboard + menu Absensi, plus Kasbon miliknya.
   // Akun tanpa role → halaman penjelasan. Data tetap dijaga RLS; fungsi belum ada
   // (migrasi RLS belum dijalankan) atau error lain → perlakukan sebagai admin (mode lama).
   const { data: role, error } = await supabase.rpc("current_app_role");
@@ -69,7 +71,8 @@ export async function updateSession(request: NextRequest) {
 
   if (access === "none") return isDenied ? response : redirectTo(DENIED_PATH);
   if (isDenied) return redirectTo("/");
-  if (access === "viewer" && !VIEWER_PATHS.some((p) => (p === "/" ? pathname === "/" : pathname === p || pathname.startsWith(`${p}/`)))) {
+  const under = (p: string) => (p === "/" ? pathname === "/" : pathname === p || pathname.startsWith(`${p}/`));
+  if (access === "viewer" && (!VIEWER_PATHS.some(under) || ADMIN_ONLY_PATHS.some(under))) {
     return redirectTo("/");
   }
 

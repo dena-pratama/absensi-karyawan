@@ -6,19 +6,10 @@ import { Icon } from "@/components/icon";
 import { PageBody } from "@/components/shell/page-layout";
 import { getAttendance, summarize, type AttendanceEntry } from "@/lib/data/attendance";
 import { getEmployeeDetail } from "@/lib/data/employee";
-import {
-  daysOfMonth,
-  formatDateLong,
-  formatMonthLong,
-  formatMonthShort,
-  initials,
-  monthOf,
-  monthRange,
-  shiftMonth,
-  todayWIB,
-} from "@/lib/format";
+import { daysOfMonth, formatDateLong, formatMonthLong, formatMonthShort, initials, monthOf, monthRange, shiftMonth, todayWIB } from "@/lib/format";
 import { ATTENDANCE_LABEL, BRANCH_TYPE_LABEL, type AttendanceStatus } from "@/lib/labels";
 import { AbsensiHeader } from "../../_components/absensi-header";
+import { KasbonHistory } from "./kasbon-history";
 import { TrendChart, type TrendPoint } from "./trend-chart";
 
 export const metadata: Metadata = { title: "Detail Karyawan" };
@@ -78,48 +69,48 @@ async function Content({ params }: { params: PageProps<"/absensi/karyawan/[id]">
       </Link>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Profil */}
-        <section aria-label="Profil karyawan" className="lg:col-span-4 bg-panel border border-line rounded-2xl p-5 flex flex-col gap-5">
-          <div className="flex items-center gap-3">
-            <span className="w-14 h-14 rounded-full bg-gradient-to-tr from-cyan-400 to-indigo-500 p-[2px] flex-shrink-0">
-              <span className="w-full h-full rounded-full bg-gray-900 flex items-center justify-center font-bold text-base text-ink">
-                {initials(employee.name)}
+        {/* Profil + riwayat kasbon tepat di bawahnya */}
+        <div className="lg:col-span-4 flex flex-col gap-6">
+          <section aria-label="Profil karyawan" className="bg-panel border border-line rounded-2xl p-5 flex flex-col gap-5">
+            <div className="flex items-center gap-3">
+              <span className="w-14 h-14 rounded-full bg-gradient-to-tr from-cyan-400 to-indigo-500 p-[2px] flex-shrink-0">
+                <span className="w-full h-full rounded-full bg-gray-900 flex items-center justify-center font-bold text-base text-ink">
+                  {initials(employee.name)}
+                </span>
               </span>
-            </span>
-            <div className="min-w-0">
-              <h2 className="text-lg font-bold text-ink truncate">{employee.name}</h2>
-              <p className="text-xs text-cyan-400 truncate">{employee.assignment?.role ?? "Belum ditempatkan"}</p>
-              <span
-                className={`inline-flex mt-1 items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] ${
-                  employee.isActive
-                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                    : "bg-gray-500/10 text-gray-400 border-gray-500/30"
-                }`}
-              >
-                <span className={`w-1.5 h-1.5 rounded-full ${employee.isActive ? "bg-emerald-400" : "bg-gray-500"}`} />
-                {employee.isActive ? "Aktif" : "Nonaktif"}
-              </span>
+              <div className="min-w-0">
+                <h2 className="text-lg font-bold text-ink truncate">{employee.name}</h2>
+                <p className="text-xs text-cyan-400 truncate">{employee.assignment?.role ?? "Belum ditempatkan"}</p>
+                <span
+                  className={`inline-flex mt-1 items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] ${
+                    employee.isActive ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" : "bg-gray-500/10 text-gray-400 border-gray-500/30"
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${employee.isActive ? "bg-emerald-400" : "bg-gray-500"}`} />
+                  {employee.isActive ? "Aktif" : "Nonaktif"}
+                </span>
+              </div>
             </div>
-          </div>
-          <dl className="grid grid-cols-1 gap-3 text-xs">
-            <Field label="NIK / ID" value={<span className="font-mono">{employee.nik}</span>} />
-            <Field
-              label="Cabang"
-              value={
-                employee.assignment
-                  ? `${employee.assignment.branch.code} - ${employee.assignment.branch.name} (${BRANCH_TYPE_LABEL[employee.assignment.branch.type]})`
-                  : "-"
-              }
-            />
-            <Field label="No. WhatsApp" value={<span className="font-mono">{employee.phone ?? "-"}</span>} />
-            <Field label="Status Kontrak" value={CONTRACT_LABEL[employee.contract]} />
-            <Field label="Tanggal Bergabung" value={employee.joinDate ? formatDateLong(employee.joinDate) : "-"} />
-            <Field
-              label="Ditempatkan Sejak"
-              value={employee.assignment ? formatDateLong(employee.assignment.validFrom) : "-"}
-            />
-          </dl>
-        </section>
+            <dl className="grid grid-cols-1 gap-3 text-xs">
+              <Field label="NIK / ID" value={<span className="font-mono">{employee.nik}</span>} />
+              <Field
+                label="Cabang"
+                value={
+                  employee.assignment
+                    ? `${employee.assignment.branch.code} - ${employee.assignment.branch.name} (${BRANCH_TYPE_LABEL[employee.assignment.branch.type]})`
+                    : "-"
+                }
+              />
+              <Field label="No. WhatsApp" value={<span className="font-mono">{employee.phone ?? "-"}</span>} />
+              <Field label="Status Kontrak" value={CONTRACT_LABEL[employee.contract]} />
+              <Field label="Tanggal Bergabung" value={employee.joinDate ? formatDateLong(employee.joinDate) : "-"} />
+              <Field label="Ditempatkan Sejak" value={employee.assignment ? formatDateLong(employee.assignment.validFrom) : "-"} />
+            </dl>
+          </section>
+          <Suspense fallback={<div className="h-48 rounded-2xl bg-panel border border-line animate-pulse" />}>
+            <KasbonHistory employeeId={employee.id} />
+          </Suspense>
+        </div>
 
         {/* Statistik & chart */}
         <div className="lg:col-span-8 flex flex-col gap-6">
@@ -144,9 +135,7 @@ async function Content({ params }: { params: PageProps<"/absensi/karyawan/[id]">
               <h3 id="trend-title" className="text-sm font-bold text-ink">
                 Persentase Kehadiran {TREND_MONTHS} Bulan Terakhir
               </h3>
-              <span className="text-[11px] text-gray-400 tabular-nums">
-                Rata-rata: {all.percent === null ? "–" : `${all.percent}%`}
-              </span>
+              <span className="text-[11px] text-gray-400 tabular-nums">Rata-rata: {all.percent === null ? "–" : `${all.percent}%`}</span>
             </div>
             <TrendChart points={trend} />
           </section>

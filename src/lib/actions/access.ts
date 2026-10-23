@@ -56,7 +56,8 @@ export async function saveUserAccess(changes: AccessChange[]): Promise<AccessRes
 
   let applied = 0;
   for (const c of changes) {
-    if (c.userId === me) return { ok: false, error: "Hak akses akun sendiri tidak bisa diubah.", applied };
+    // Akun sendiri: role tetap admin, hanya hubungan ke data karyawan (untuk kasbon) yang boleh diubah.
+    if (c.userId === me && c.role !== "admin") return { ok: false, error: "Hak akses akun sendiri tidak bisa diubah.", applied };
     if (c.role && !ROLES.includes(c.role)) return { ok: false, error: "Role tidak valid.", applied };
     if (c.role === "spv" && !c.branchIds.length) return { ok: false, error: "Pilih minimal 1 cabang untuk SPV.", applied };
     if (c.role === "karyawan" && !c.employeeId) return { ok: false, error: "Pilih data karyawan untuk akun karyawan.", applied };
@@ -67,7 +68,7 @@ export async function saveUserAccess(changes: AccessChange[]): Promise<AccessRes
             user_id: c.userId,
             role: c.role,
             branch_id: c.role === "spv" ? c.branchIds[0] : null,
-            employee_id: c.role === "karyawan" || c.role === "spv" ? c.employeeId || null : null,
+            employee_id: c.employeeId || null, // admin & SPV opsional (kasbon / absen), karyawan wajib
           },
           { onConflict: "user_id" },
         )
@@ -127,7 +128,7 @@ export async function createUserAccount(input: NewAccount): Promise<CreateResult
     user_id: data.user.id,
     role: input.role,
     branch_id: input.role === "spv" ? input.branchIds[0] : null,
-    employee_id: input.role === "karyawan" || input.role === "spv" ? input.employeeId || null : null,
+    employee_id: input.employeeId || null,
   });
   const branchError = roleError ? null : await syncSpvBranches(supabase, data.user.id, input.role === "spv" ? input.branchIds : []);
   if (roleError || branchError) {
