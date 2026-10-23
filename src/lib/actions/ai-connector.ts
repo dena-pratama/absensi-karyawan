@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getStoredKey } from "@/lib/ai/connector";
 import { encryptSecret, isAiKeyConfigured } from "@/lib/ai/crypto";
 import { AiError, listModels } from "@/lib/ai/engine";
-import { isAiProvider, type AiProvider } from "@/lib/ai/providers";
+import { AI_PROVIDERS, isAiProvider, needsBaseUrl, type AiProvider } from "@/lib/ai/providers";
 import { READ_ONLY_ERROR, isAdmin } from "@/lib/data/access";
 import { createClient } from "@/lib/supabase/server";
 
@@ -13,19 +13,36 @@ export type TestResult = { ok: true; models: string[] } | { ok: false; error: st
 
 const MODEL_RE = /^[A-Za-z0-9._:\-/]{2,100}$/;
 
+/** Base URL untuk Ollama / custom: wajib http(s), tanpa spasi; null untuk provider lain. */
+function cleanBaseUrl(provider: AiProvider, raw: string): { ok: true; url: string | null } | { ok: false; error: string } {
+  if (!needsBaseUrl(provider)) return { ok: true, url: null };
+  const value = raw.trim().replace(/\/+$/, "");
+  if (!value) return { ok: false, error: "Isi base URL server AI." };
+  try {
+    const u = new URL(value);
+    if (u.protocol !== "https:" && u.protocol !== "http:") throw new Error();
+    if (u.username || u.password) return { ok: false, error: "Jangan taruh username / password di base URL. Pakai kolom API key." };
+    return { ok: true, url: value.slice(0, 300) };
+  } catch {
+    return { ok: false, error: "Base URL tidak valid. Contoh: https://ollama.domain-anda.com/v1" };
+  }
+}
+
 async function resolveKey(provider: AiProvider, apiKey: string) {
   return apiKey.trim() || (await getStoredKey(provider).catch(() => null)) || "";
 }
 
 /** Tes API key (yang diketik, atau yang tersimpan) dengan mengambil daftar model. */
-export async function testConnector(provider: string, apiKey: string): Promise<TestResult> {
+export async function testConnector(provider: string, apiKey: string, baseUrl = ""): Promise<TestResult> {
   if (!(await isAdmin())) return { ok: false, error: READ_ONLY_ERROR };
   if (!isAiProvider(provider)) return { ok: false, error: "Provider tidak valid." };
   if (!isAiKeyConfigured()) return { ok: false, error: "AI_ENCRYPTION_KEY belum diatur di server." };
+  const url = cleanBaseUrl(provider, baseUrl);
+  if (!url.ok) return url;
   const key = await resolveKey(provider, apiKey);
-  if (!key) return { ok: false, error: "Isi API key terlebih dahulu." };
+  if (!key && !AI_PROVIDERS[provider].keyOptional) return { ok: false, error: "Isi API key terlebih dahulu." };
   try {
-    return { ok: true, models: await listModels(provider, key) };
+    return { ok: true, models: await listModels(provider, key, url.url) };
   } catch (err) {
     return { ok: false, error: err instanceof AiError ? err.message : "Gagal tes koneksi." };
   }
@@ -39,6 +56,7 @@ export async function saveConnector(input: {
   provider: string;
   model: string;
   apiKey: string;
+  baseUrl?: string;
   activate: boolean;
 }): Promise<ConnectorResult> {
   if (!(await isAdmin())) return { ok: false, error: READ_ONLY_ERROR };
@@ -47,6 +65,8 @@ export async function saveConnector(input: {
   if (!isAiProvider(provider)) return { ok: false, error: "Provider tidak valid." };
   if (!MODEL_RE.test(model)) return { ok: false, error: "Nama model tidak valid." };
   if (!isAiKeyConfigured()) return { ok: false, error: "AI_ENCRYPTION_KEY belum diatur di server." };
+  const url = cleanBaseUrl(provider, input.baseUrl ?? "");
+  if (!url.ok) return url;
 
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getClaims();
@@ -54,7 +74,8 @@ export async function saveConnector(input: {
 
   const newKey = input.apiKey.trim();
   const { data: existing } = await supabase.from("ai_connector").select("id").eq("provider", provider).maybeSingle();
-  if (!existing && !newKey) return { ok: false, error: "API key wajib diisi untuk konektor baru." };
+  const keyOptional = AI_PROVIDERS[provider].keyOptional ?? false;
+  if (!existing && !newKey && !keyOptional) return { ok: false, error: "API key wajib diisi untuk konektor baru." };
 
   if (activate) {
     const { error } = await supabase.from("ai_connector").update({ is_active: false }).neq("provider", provider);
@@ -67,6 +88,9 @@ export async function saveConnector(input: {
     is_active: activate,
     updated_by: userId,
     ...(newKey ? { api_key_ciphertext: encryptSecret(newKey), api_key_last4: newKey.slice(-4) } : {}),
+    // Provider tanpa key (mis. Ollama sendiri): simpan key kosong terenkripsi supaya kolom wajib tetap terisi.
+    ...(!newKey && !existing ? { api_key_ciphertext: encryptSecret(""), api_key_last4: "" } : {}),
+    ...(needsBaseUrl(provider) ? { base_url: url.url } : {}),
   };
   const { error } = existing
     ? await supabase.from("ai_connector").update(cols).eq("id", existing.id)
@@ -74,7 +98,12 @@ export async function saveConnector(input: {
   if (error) {
     return {
       ok: false,
-      error: error.code === "PGRST205" ? "Tabel ai_connector belum ada. Jalankan migrasi 20261020010000_ai_connector.sql." : "Gagal menyimpan konektor.",
+      error:
+        error.code === "PGRST205"
+          ? "Tabel ai_connector belum ada. Jalankan migrasi 20261020010000_ai_connector.sql."
+          : error.code === "23514" || error.code === "PGRST204" || error.code === "42703"
+            ? "Provider ini belum aktif di database. Jalankan migrasi 20261026000000_ai_more_providers.sql."
+            : "Gagal menyimpan konektor.",
     };
   }
 

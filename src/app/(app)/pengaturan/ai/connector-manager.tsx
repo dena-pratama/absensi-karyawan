@@ -4,7 +4,7 @@ import { useCallback, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/icon";
 import { deactivateConnector, deleteConnector, saveConnector, testConnector } from "@/lib/actions/ai-connector";
-import { AI_PROVIDERS, type AiProvider, type ConnectorInfo } from "@/lib/ai/providers";
+import { AI_PROVIDERS, needsBaseUrl, type AiProvider, type ConnectorInfo } from "@/lib/ai/providers";
 import { Field, inputCls, Toast, useToastTimer } from "../_components/ui";
 
 const PROVIDERS = Object.keys(AI_PROVIDERS) as AiProvider[];
@@ -13,7 +13,16 @@ const PROVIDER_ACCENT: Record<AiProvider, string> = {
   anthropic: "from-[#d97757]/30 to-transparent text-[#f0a37f]",
   openai: "from-emerald-500/25 to-transparent text-emerald-300",
   gemini: "from-sky-500/25 to-transparent text-sky-300",
+  deepseek: "from-blue-600/25 to-transparent text-blue-300",
+  openrouter: "from-indigo-500/25 to-transparent text-indigo-300",
+  groq: "from-orange-500/25 to-transparent text-orange-300",
+  mistral: "from-amber-500/25 to-transparent text-amber-300",
+  xai: "from-slate-400/20 to-transparent text-slate-200",
+  ollama: "from-zinc-300/15 to-transparent text-zinc-200",
+  custom: "from-purple-500/20 to-transparent text-purple-300",
 };
+
+const keyLabel = (c: ConnectorInfo) => (c.last4 ? `Key ••••${c.last4}` : "Tanpa key");
 
 function formatUpdated(iso: string) {
   return new Intl.DateTimeFormat("id-ID", {
@@ -43,6 +52,7 @@ export function ConnectorManager({
   const saved = byProvider.get(selected);
   const [model, setModel] = useState(saved?.model ?? AI_PROVIDERS[selected].defaultModel);
   const [apiKey, setApiKey] = useState("");
+  const [baseUrl, setBaseUrl] = useState(saved?.baseUrl ?? "");
   const [showKey, setShowKey] = useState(false);
   const [models, setModels] = useState<string[]>([]);
   const [toast, setToast] = useState<{ text: string; error: boolean } | null>(null);
@@ -56,8 +66,11 @@ export function ConnectorManager({
     setSelected(p);
     setModel(byProvider.get(p)?.model ?? AI_PROVIDERS[p].defaultModel);
     setApiKey("");
+    setBaseUrl(byProvider.get(p)?.baseUrl ?? "");
     setModels([]);
   };
+  const meta = AI_PROVIDERS[selected];
+  const withUrl = needsBaseUrl(selected);
 
   const run = (fn: () => Promise<{ ok: boolean; message?: string; error?: string }>) =>
     startBusy(async () => {
@@ -71,7 +84,7 @@ export function ConnectorManager({
 
   const test = () =>
     startBusy(async () => {
-      const res = await testConnector(selected, apiKey);
+      const res = await testConnector(selected, apiKey, baseUrl);
       if (res.ok) {
         setModels(res.models);
         setToast({ text: `Koneksi berhasil, ${res.models.length} model tersedia.`, error: false });
@@ -104,7 +117,7 @@ export function ConnectorManager({
       )}
 
       {/* Kartu provider */}
-      <section aria-label="Pilih provider" className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <section aria-label="Pilih provider" className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
         {PROVIDERS.map((p) => {
           const c = byProvider.get(p);
           const isSelected = p === selected;
@@ -114,29 +127,30 @@ export function ConnectorManager({
               type="button"
               onClick={() => choose(p)}
               aria-pressed={isSelected}
-              className={`relative overflow-hidden text-left rounded-2xl border p-5 transition bg-panel ${
+              className={`relative overflow-hidden text-left rounded-2xl border p-4 transition bg-panel min-w-0 ${
                 isSelected ? "border-cyan-400/70 shadow-[0_0_15px_rgba(0,210,255,0.18)]" : "border-line hover:border-line-strong"
               }`}
             >
               <div className={`absolute inset-0 bg-gradient-to-br ${PROVIDER_ACCENT[p]} opacity-60 pointer-events-none`} />
               <div className="relative flex flex-col gap-2">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-bold text-ink">{AI_PROVIDERS[p].label}</span>
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-sm font-bold text-ink leading-tight">{AI_PROVIDERS[p].label}</span>
                   <span
                     className={`text-[10px] px-2 py-0.5 rounded-full border ${
-                      c?.isActive
+                      "flex-shrink-0 " +
+                      (c?.isActive
                         ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/40"
                         : c
                           ? "bg-cyan-500/10 text-cyan-300 border-cyan-500/30"
-                          : "bg-gray-500/10 text-gray-400 border-gray-500/30"
+                          : "bg-gray-500/10 text-gray-400 border-gray-500/30")
                     }`}
                   >
-                    {c?.isActive ? "● Aktif" : c ? "Tersimpan" : "Belum diatur"}
+                    {c?.isActive ? "● Aktif" : c ? "Tersimpan" : "Belum"}
                   </span>
                 </div>
                 <div className="text-xs text-gray-300 font-mono truncate">{c?.model ?? "-"}</div>
-                <div className="text-[10px] text-gray-400">
-                  {c ? `Key ••••${c.last4} • diperbarui ${formatUpdated(c.updatedAt)}` : "Klik untuk mengatur"}
+                <div className="text-[10px] text-gray-400 truncate" title={c ? `diperbarui ${formatUpdated(c.updatedAt)}` : undefined}>
+                  {c ? keyLabel(c) : "Klik untuk mengatur"}
                 </div>
               </div>
             </button>
@@ -153,18 +167,48 @@ export function ConnectorManager({
               Konektor {AI_PROVIDERS[selected].label}
             </h2>
             <p className="text-[11px] text-gray-400 mt-0.5">
-              Dapatkan API key di{" "}
-              <a href={AI_PROVIDERS[selected].keyUrl} target="_blank" rel="noreferrer" className="text-cyan-400 hover:text-cyan-300 underline">
-                {new URL(AI_PROVIDERS[selected].keyUrl).hostname}
-              </a>
+              {selected === "custom" ? "API key dari provider pilihan Anda" : meta.keyOptional ? "API key opsional, lihat" : "Dapatkan API key di"}{" "}
+              {selected !== "custom" && (
+                <a href={meta.keyUrl} target="_blank" rel="noreferrer" className="text-cyan-400 hover:text-cyan-300 underline">
+                  {new URL(meta.keyUrl).hostname}
+                </a>
+              )}
               . Hanya satu konektor yang aktif dipakai Smart AI.
             </p>
+            {meta.note && (
+              <p className="mt-2 text-[11px] text-amber-200 bg-amber-950/25 border border-amber-500/30 rounded-lg px-3 py-2 flex gap-2">
+                <Icon name="info" className="text-[15px] text-amber-400 flex-shrink-0" />
+                <span>{meta.note}</span>
+              </p>
+            )}
           </div>
+
+          {withUrl && (
+            <Field label="Base URL" hint="Alamat API yang kompatibel dengan OpenAI, biasanya diakhiri /v1.">
+              <input
+                type="url"
+                inputMode="url"
+                autoComplete="off"
+                spellCheck={false}
+                className={`${inputCls} font-mono`}
+                placeholder={meta.baseUrlPlaceholder}
+                value={baseUrl}
+                onChange={(e) => setBaseUrl(e.target.value)}
+                disabled={disabled}
+              />
+            </Field>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Field
-              label="API Key"
-              hint={saved ? `Kosongkan untuk tetap memakai key tersimpan (••••${saved.last4}).` : "Disimpan terenkripsi di server, tidak pernah dikirim ke browser."}
+              label={meta.keyOptional ? "API Key (opsional)" : "API Key"}
+              hint={
+                saved?.last4
+                  ? `Kosongkan untuk tetap memakai key tersimpan (••••${saved.last4}).`
+                  : meta.keyOptional
+                    ? "Kosongkan bila server tidak memakai key. Disimpan terenkripsi di server."
+                    : "Disimpan terenkripsi di server, tidak pernah dikirim ke browser."
+              }
             >
               <span className="relative block">
                 <input
@@ -172,7 +216,7 @@ export function ConnectorManager({
                   autoComplete="off"
                   spellCheck={false}
                   className={`${inputCls} font-mono pr-10`}
-                  placeholder={saved ? `••••••••${saved.last4}` : AI_PROVIDERS[selected].keyHint}
+                  placeholder={saved?.last4 ? `••••••••${saved.last4}` : meta.keyHint}
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
                   disabled={disabled}
@@ -216,7 +260,7 @@ export function ConnectorManager({
             </button>
             <button
               type="button"
-              onClick={() => run(() => saveConnector({ provider: selected, model, apiKey, activate: saved?.isActive ?? false }))}
+              onClick={() => run(() => saveConnector({ provider: selected, model, apiKey, baseUrl, activate: saved?.isActive ?? false }))}
               disabled={busy || disabled || !model.trim()}
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-line-strong bg-panel-raised text-gray-200 hover:text-brand-ink hover:border-brand/40 transition disabled:opacity-50"
             >
@@ -226,7 +270,7 @@ export function ConnectorManager({
             {!saved?.isActive && (
               <button
                 type="button"
-                onClick={() => run(() => saveConnector({ provider: selected, model, apiKey, activate: true }))}
+                onClick={() => run(() => saveConnector({ provider: selected, model, apiKey, baseUrl, activate: true }))}
                 disabled={busy || disabled || !model.trim()}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-brand hover:bg-brand/90 text-black font-semibold shadow-[0_0_15px_rgba(0,210,255,0.25)] transition disabled:opacity-50"
               >

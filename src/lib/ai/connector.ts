@@ -8,6 +8,7 @@ type Row = {
   model: string;
   api_key_ciphertext: string;
   api_key_last4: string;
+  base_url?: string | null; // ada setelah migrasi ai_more_providers
   is_active: boolean;
   updated_at: string;
 };
@@ -15,10 +16,12 @@ type Row = {
 /** Daftar konektor tanpa API key (untuk halaman Pengaturan). */
 export async function getConnectors(): Promise<{ connectors: ConnectorInfo[]; tableMissing: boolean }> {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("ai_connector")
-    .select("provider, model, api_key_last4, is_active, updated_at")
-    .order("provider");
+  const query = (cols: string) => supabase.from("ai_connector").select(cols).order("provider");
+  // Kolom base_url belum ada sebelum migrasi ai_more_providers → ulang tanpa kolom itu.
+  let res = await query("provider, model, api_key_last4, base_url, is_active, updated_at");
+  if (res.error?.code === "42703") res = await query("provider, model, api_key_last4, is_active, updated_at");
+  const { error } = res;
+  const data = res.data as unknown as Row[] | null;
   if (error) {
     // PGRST205 = tabel belum ada (migrasi ai_connector belum dijalankan)
     if (error.code === "PGRST205") return { connectors: [], tableMissing: true };
@@ -30,6 +33,7 @@ export async function getConnectors(): Promise<{ connectors: ConnectorInfo[]; ta
       provider: r.provider as AiProvider,
       model: r.model as string,
       last4: r.api_key_last4 as string,
+      baseUrl: r.base_url ?? null,
       isActive: r.is_active as boolean,
       updatedAt: r.updated_at as string,
     })),
@@ -37,16 +41,14 @@ export async function getConnectors(): Promise<{ connectors: ConnectorInfo[]; ta
 }
 
 /** Konektor aktif + API key terdekripsi (hanya di server). */
-export async function getActiveConnector(): Promise<{ provider: AiProvider; model: string; apiKey: string } | null> {
+export async function getActiveConnector(): Promise<{ provider: AiProvider; model: string; apiKey: string; baseUrl: string | null } | null> {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("ai_connector")
-    .select("provider, model, api_key_ciphertext, api_key_last4, is_active, updated_at")
-    .eq("is_active", true)
-    .maybeSingle();
-  if (error || !data) return null;
-  const row = data as Row;
-  return { provider: row.provider, model: row.model, apiKey: decryptSecret(row.api_key_ciphertext) };
+  const query = (cols: string) => supabase.from("ai_connector").select(cols).eq("is_active", true).maybeSingle();
+  let res = await query("provider, model, api_key_ciphertext, base_url");
+  if (res.error?.code === "42703") res = await query("provider, model, api_key_ciphertext");
+  if (res.error || !res.data) return null;
+  const row = res.data as unknown as Row;
+  return { provider: row.provider, model: row.model, apiKey: decryptSecret(row.api_key_ciphertext), baseUrl: row.base_url ?? null };
 }
 
 /** API key tersimpan untuk satu provider (dipakai tes koneksi tanpa mengetik ulang key). */

@@ -5,6 +5,24 @@ Format: entri terbaru di paling atas.
 
 ---
 
+## 2026-10-24 — Konektor AI: provider tambahan (DeepSeek, Ollama, dll)
+
+Permintaan user: konektor AI bisa pakai model lain selain Claude / OpenAI / Gemini.
+- Provider baru: DeepSeek, OpenRouter, Groq, Mistral, xAI Grok (base URL tetap), Ollama & "OpenAI-compatible"
+  (base URL diisi admin, API key opsional). Semua lewat SDK OpenAI dengan `baseURL` (Chat Completions + tool calling).
+- `lib/ai/providers.ts`: metadata `kind` (anthropic / openai / gemini / compat), `baseUrl`, `keyOptional`, catatan.
+  `engine.ts`: `openaiClient()` untuk compat; pesan error baru (model tanpa tool calling, server tidak terjangkau).
+- `actions/ai-connector.ts`: validasi base URL (http/https, tanpa user:pass di URL), key opsional disimpan sebagai
+  string kosong terenkripsi. `connector.ts` membaca `base_url` (fallback bila kolom belum ada).
+- Halaman Konektor AI: 10 kartu provider (grid 5 kolom), kolom Base URL untuk Ollama / custom, catatan per provider.
+- Migrasi `20261026000000_ai_more_providers.sql` (sudah dijalankan user di Supabase, berhasil): perluas check provider + kolom `base_url`.
+  Diuji di PGlite: semua migrasi jalan, provider asing & URL non-http ditolak.
+- Catatan: web berjalan di Vercel, jadi Ollama di `localhost` PC tidak bisa dipakai; server Ollama harus bisa
+  diakses dari internet (domain / tunnel).
+- `tsc`, `eslint`, `next build` lolos. Belum dites dengan API key sungguhan.
+
+---
+
 ## 2026-10-24 — Riwayat kasbon di Detail Karyawan
 
 Permintaan user: di Absensi → Daftar Karyawan → detail, tampilkan riwayat kasbon tepat di bawah data karyawan.

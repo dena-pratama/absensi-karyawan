@@ -3,7 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { GoogleGenAI, type Content, type Part } from "@google/genai";
 import OpenAI from "openai";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
-import type { AiProvider } from "./providers";
+import { AI_PROVIDERS, type AiProvider } from "./providers";
 
 export type ChatTurn = { role: "user" | "assistant"; text: string };
 
@@ -19,6 +19,8 @@ type RunParams = {
   provider: AiProvider;
   model: string;
   apiKey: string;
+  /** Base URL untuk provider OpenAI-compatible (Ollama / custom). */
+  baseUrl?: string | null;
   system: string;
   history: ChatTurn[];
   tools: ToolDef[];
@@ -35,7 +37,12 @@ export class AiError extends Error {}
 function friendlyError(err: unknown): AiError {
   const status = (err as { status?: number })?.status;
   if (status === 401 || status === 403) return new AiError("API key ditolak provider. Periksa key di Pengaturan > Konektor AI.");
-  if (status === 404) return new AiError("Model tidak ditemukan. Periksa nama model di Pengaturan > Konektor AI.");
+  if (status === 404) return new AiError("Model atau alamat API tidak ditemukan. Periksa model / base URL di Pengaturan > Konektor AI.");
+  if (status === 400 && /tool|function/i.test((err as Error)?.message ?? "")) {
+    return new AiError("Model ini tidak mendukung tool calling. Pilih model lain di Pengaturan > Konektor AI.");
+  }
+  // Server tidak bisa dihubungi (mis. Ollama di localhost / URL salah)
+  if (err instanceof OpenAI.APIConnectionError) return new AiError("Server AI tidak bisa dihubungi. Periksa base URL dan pastikan server bisa diakses dari internet.");
   if (status === 429) return new AiError("Batas pemakaian / kuota provider tercapai. Coba lagi nanti.");
   if (status && status >= 500) return new AiError("Server provider AI sedang bermasalah. Coba lagi nanti.");
   if (err instanceof AiError) return err;
@@ -94,10 +101,19 @@ async function runAnthropic({ model, apiKey, system, history, tools, execute }: 
   return "Analisis terlalu panjang. Coba persempit pertanyaannya (misalnya pilih cabang atau rentang tanggal).";
 }
 
-/* ------------------------------- OpenAI ------------------------------- */
+/* ------------------------- OpenAI & kompatibel ------------------------- */
 
-async function runOpenAI({ model, apiKey, system, history, tools, execute }: RunParams): Promise<string> {
-  const client = new OpenAI({ apiKey });
+/** Client OpenAI; provider compat memakai base URL-nya sendiri (key boleh kosong, mis. Ollama). */
+function openaiClient(provider: AiProvider, apiKey: string, baseUrl?: string | null) {
+  const meta = AI_PROVIDERS[provider];
+  if (meta.kind !== "compat") return new OpenAI({ apiKey });
+  const url = meta.baseUrl ?? baseUrl;
+  if (!url) throw new AiError("Base URL belum diisi di Pengaturan > Konektor AI.");
+  return new OpenAI({ apiKey: apiKey || "tanpa-key", baseURL: url, maxRetries: 1, timeout: 120_000 });
+}
+
+async function runOpenAI({ provider, model, apiKey, baseUrl, system, history, tools, execute }: RunParams): Promise<string> {
+  const client = openaiClient(provider, apiKey, baseUrl);
   const messages: ChatCompletionMessageParam[] = [
     { role: "system", content: system },
     ...history.map((h) => ({ role: h.role, content: h.text }) as ChatCompletionMessageParam),
@@ -164,22 +180,24 @@ async function runGemini({ model, apiKey, system, history, tools, execute }: Run
 /** Jalankan percakapan + tool loop pada provider yang dipilih. */
 export async function runAgent(params: RunParams): Promise<string> {
   try {
-    if (params.provider === "anthropic") return await runAnthropic(params);
-    if (params.provider === "openai") return await runOpenAI(params);
-    return await runGemini(params);
+    const kind = AI_PROVIDERS[params.provider].kind;
+    if (kind === "anthropic") return await runAnthropic(params);
+    if (kind === "gemini") return await runGemini(params);
+    return await runOpenAI(params); // openai & compat
   } catch (err) {
     throw friendlyError(err);
   }
 }
 
 /** Daftar model yang bisa dipakai (sekaligus tes API key). */
-export async function listModels(provider: AiProvider, apiKey: string): Promise<string[]> {
+export async function listModels(provider: AiProvider, apiKey: string, baseUrl?: string | null): Promise<string[]> {
   try {
     const ids: string[] = [];
-    if (provider === "anthropic") {
+    const kind = AI_PROVIDERS[provider].kind;
+    if (kind === "anthropic") {
       for await (const m of new Anthropic({ apiKey }).models.list()) ids.push(m.id);
-    } else if (provider === "openai") {
-      for await (const m of new OpenAI({ apiKey }).models.list()) ids.push(m.id);
+    } else if (kind === "openai" || kind === "compat") {
+      for await (const m of openaiClient(provider, apiKey, baseUrl).models.list()) ids.push(m.id);
     } else {
       const pager = await new GoogleGenAI({ apiKey }).models.list();
       for await (const m of pager) {
