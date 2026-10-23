@@ -65,6 +65,7 @@ export async function askAssistant(history: ChatTurn[], message: string): Promis
       provider: connector.provider,
       model: connector.model,
       apiKey: connector.apiKey,
+      baseUrl: connector.baseUrl,
       system: systemPrompt(today, activeBranch?.code ?? null),
       history: [...cleanHistory, { role: "user", text }],
       tools: AI_TOOLS,
