@@ -24,7 +24,7 @@ Masukan user: notifikasi simpan / edit / hapus terlalu basic, minta pop up beran
 
 Keputusan user: halaman Reset Data dengan 2 pilihan, wajib unduh backup dulu, konfirmasi 2x, sesi HP logout semua,
 akun admin yang menjalankan tetap.
-- Migrasi `20261031000000_reset_data.sql` (**belum dijalankan user**): `admin_reset_data(mode, 'RESET DATABASE')`, khusus
+- Migrasi `20261031000000_reset_data.sql` (sudah dijalankan user, berhasil): `admin_reset_data(mode, 'RESET DATABASE')`, khusus
   admin, satu transaksi. transaksi = absensi, kasbon, backup, AI insight, log; total = + role akun lain, karyawan,
   penempatan, cabang, cluster, jabatan, gaji (pengaturan gajian default). Akun pemanggil tetap admin. Menghapus
   `auth.sessions` selain pemanggil (dibungkus, reset tetap jalan bila tidak diizinkan). Diuji di PGlite.
