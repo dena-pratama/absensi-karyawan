@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Icon } from "@/components/icon";
 import { createUserAccount, deleteUserAccount, saveUserAccess, updateUserAccount, type NewAccount } from "@/lib/actions/access";
 import type { UserAccess } from "@/lib/data/access";
-import { APP_ROLE_LABEL, type AppRole } from "@/lib/labels";
+import { APP_ROLE_LABEL, APP_ROLES, attendsSelf, holdsBranches, type AppRole } from "@/lib/labels";
 import { PASSWORD_MIN, USERNAME_HINT, usernameFromNik } from "@/lib/login-id";
 import { ApplyBar, ChangeBadge, Field, Modal, Pagination, SelectBox, Toast, filterCls, inputCls, useToastTimer } from "../_components/ui";
 import { useStaged } from "../_components/staged";
@@ -23,18 +23,19 @@ const EMPTY_ACCOUNT: NewAccount = { login: "", password: "", role: "karyawan", b
 const ROLE_STYLE: Record<AppRole | "", string> = {
   admin: "bg-cyan-500/10 text-cyan-300 border-cyan-500/30",
   spv: "bg-purple-500/10 text-purple-300 border-purple-500/30",
+  office: "bg-amber-500/10 text-amber-300 border-amber-500/30",
   karyawan: "bg-emerald-500/10 text-emerald-300 border-emerald-500/30",
   "": "bg-panel-raised text-gray-400 border-line-strong",
 };
 
 /** Ringkasan hak akses per role — mengikuti policy di migrasi role_based_rls. */
-const MATRIX: { area: string; admin: string; spv: string; karyawan: string }[] = [
-  { area: "Panel web: Dashboard & Absensi", admin: "Lihat & ubah", spv: "Lihat saja, cabang-cabangnya", karyawan: "Lihat saja, dirinya" },
+const MATRIX: { area: string; admin: string; office?: string; spv: string; karyawan: string }[] = [
+  { area: "Panel web: Dashboard & Absensi", admin: "Lihat & ubah", office: "Lihat saja, semua cabang", spv: "Lihat saja, cabang-cabangnya", karyawan: "Lihat saja, dirinya" },
   { area: "Panel web: Laporan & Pengaturan", admin: "Penuh", spv: "-", karyawan: "-" },
-  { area: "Data karyawan & penempatan", admin: "Baca & ubah", spv: "Baca, cabang-cabangnya", karyawan: "Baca, dirinya" },
-  { area: "Data cabang", admin: "Baca & ubah", spv: "Baca, cabang-cabangnya", karyawan: "Baca, cabang-cabangnya" },
-  { area: "Absensi harian (app mobile)", admin: "Baca & ubah", spv: "Isi/ubah cabang-cabangnya (s/d hari ini) + absen sendiri di outlet pilihan", karyawan: "Isi/ubah miliknya, hari ini" },
-  { area: "Penugasan backup karyawan", admin: "Buat & ubah (web)", spv: "Buat & ubah (app), cabang-cabangnya", karyawan: "Lihat miliknya" },
+  { area: "Data karyawan & penempatan", admin: "Baca & ubah", office: "Baca, semua cabang", spv: "Baca, cabang-cabangnya", karyawan: "Baca, dirinya" },
+  { area: "Data cabang", admin: "Baca & ubah", office: "Baca, semua cabang", spv: "Baca, cabang-cabangnya", karyawan: "Baca, cabang-cabangnya" },
+  { area: "Absensi harian (app mobile)", admin: "Baca & ubah", spv: "Isi/ubah cabang-cabangnya (s/d hari ini) + absen sendiri di outlet pilihan", office: "Isi/ubah semua cabang (s/d hari ini) + absen sendiri di cabang mana pun (pilih outlet)", karyawan: "Isi/ubah miliknya, hari ini" },
+  { area: "Penugasan backup karyawan", admin: "Buat & ubah (web)", office: "Buat & ubah (app), semua cabang", spv: "Buat & ubah (app), cabang-cabangnya", karyawan: "Lihat miliknya" },
   { area: "Kasbon (web & app)", admin: "Setujui, cairkan, atur gaji + ajukan sendiri", spv: "Ajukan & lihat miliknya", karyawan: "Ajukan & lihat miliknya" },
   { area: "Master jabatan & cluster", admin: "Baca & ubah", spv: "Baca", karyawan: "Baca" },
   { area: "Log perubahan, konektor AI, hak akses", admin: "Penuh", spv: "-", karyawan: "-" },
@@ -70,7 +71,7 @@ export function AccessManager({
   const userById = new Map(users.map((u) => [u.userId, u]));
   const counts = staged.rows.reduce<Record<AppRole | "", number>>(
     (acc, r) => ((acc[r.role] += 1), acc),
-    { admin: 0, spv: 0, karyawan: 0, "": 0 },
+    { admin: 0, spv: 0, office: 0, karyawan: 0, "": 0 },
   );
   // Satu data karyawan hanya boleh terhubung ke satu akun.
   const takenEmployee = new Map(staged.rows.filter((r) => r.role && r.employeeId).map((r) => [r.employeeId, r.id]));
@@ -143,22 +144,22 @@ export function AccessManager({
     });
   };
 
-  // Cakupan yang tidak relevan untuk role baru dikosongkan (SPV → cabang, karyawan → data karyawan).
+  // Cakupan yang tidak relevan untuk role baru dikosongkan (SPV / Office → cabang, karyawan → data karyawan).
   const changeRole = (id: string, role: AppRole | "") => {
     const cur = staged.rows.find((r) => r.id === id);
     staged.patch(id, {
       role,
-      branchIds: role === "spv" ? (cur?.branchIds ?? []) : [],
-      // Admin & SPV boleh tetap terhubung ke data karyawannya (kasbon / absen lewat app).
+      branchIds: holdsBranches(role) ? (cur?.branchIds ?? []) : [],
+      // Admin, SPV & Office boleh tetap terhubung ke data karyawannya (kasbon / absen lewat app).
       employeeId: role ? (cur?.employeeId ?? "") : "",
     });
   };
 
   const apply = () =>
     startSaving(async () => {
-      const invalid = staged.changes.find((c) => (c.role === "spv" && !c.branchIds.length) || (c.role === "karyawan" && !c.employeeId));
+      const invalid = staged.changes.find((c) => (holdsBranches(c.role) && !c.branchIds.length) || (c.role === "karyawan" && !c.employeeId));
       if (invalid) {
-        setToast({ text: `${userById.get(invalid.id)?.email}: lengkapi ${invalid.role === "spv" ? "cabang" : "data karyawan"}.`, error: true });
+        setToast({ text: `${userById.get(invalid.id)?.email}: lengkapi ${holdsBranches(invalid.role) ? "cabang" : "data karyawan"}.`, error: true });
         return;
       }
       const res = await saveUserAccess(staged.changes.map((c) => ({ userId: c.id, role: c.role, branchIds: c.branchIds, employeeId: c.employeeId })));
@@ -187,8 +188,8 @@ export function AccessManager({
 
   return (
     <>
-      <section aria-label="Ringkasan role" className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {(["admin", "spv", "karyawan", ""] as const).map((r) => (
+      <section aria-label="Ringkasan role" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        {([...APP_ROLES, ""] as const).map((r) => (
           <div key={r || "none"} className="bg-panel border border-line rounded-2xl p-4">
             <div className="text-[11px] text-gray-400">{r ? APP_ROLE_LABEL[r] : "Tanpa Akses"}</div>
             <div className="text-2xl font-bold text-ink mt-1 tabular-nums">{counts[r]}</div>
@@ -230,6 +231,7 @@ export function AccessManager({
             >
               <option value="">Semua Role</option>
               <option value="admin">{APP_ROLE_LABEL.admin}</option>
+              <option value="office">{APP_ROLE_LABEL.office}</option>
               <option value="spv">{APP_ROLE_LABEL.spv}</option>
               <option value="karyawan">{APP_ROLE_LABEL.karyawan}</option>
               <option value="none">Tanpa Akses</option>
@@ -320,6 +322,7 @@ export function AccessManager({
                         <SelectBox value={r.role} onChange={(e) => changeRole(r.id, e.target.value as AppRole | "")} aria-label={`Role ${u?.email}`}>
                           <option value="">Tanpa Akses</option>
                           <option value="admin">{APP_ROLE_LABEL.admin}</option>
+                          <option value="office">{APP_ROLE_LABEL.office}</option>
                           <option value="spv">{APP_ROLE_LABEL.spv}</option>
                           <option value="karyawan">{APP_ROLE_LABEL.karyawan}</option>
                         </SelectBox>
@@ -342,15 +345,19 @@ export function AccessManager({
                         </div>
                       )}
                       {r.role === "" && <span className="text-gray-500">Tidak bisa membaca data apa pun</span>}
-                      {r.role === "spv" && (
+                      {attendsSelf(r.role) && (
                         <div className="flex flex-col gap-1.5">
-                          <BranchMultiPicker value={r.branchIds} options={branches} onChange={(ids) => staged.patch(r.id, { branchIds: ids })} />
+                          {r.role === "office" ? (
+                            <span className="text-gray-300">Semua cabang · absen sendiri di cabang mana pun</span>
+                          ) : (
+                            <BranchMultiPicker value={r.branchIds} options={branches} onChange={(ids) => staged.patch(r.id, { branchIds: ids })} />
+                          )}
                           <SearchSelect
                             value={r.employeeId}
                             options={employeeOptions(r.id).map((o) => ({ ...o, label: `Absen sebagai: ${o.label}` }))}
                             onChange={(id) => staged.patch(r.id, { employeeId: id })}
                             emptyLabel="Tanpa data karyawan (tidak absen)"
-                            label="Data karyawan SPV untuk absen"
+                            label={`Data karyawan ${APP_ROLE_LABEL[r.role]} untuk absen`}
                           />
                         </div>
                       )}
@@ -398,11 +405,12 @@ export function AccessManager({
           </p>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse min-w-[640px]">
+          <table className="w-full text-left text-xs border-collapse min-w-[760px]">
             <thead>
               <tr className="text-[11px] uppercase tracking-wider text-gray-400 border-b border-line">
                 <th scope="col" className="py-3 px-5 font-semibold">Data / Fitur</th>
                 <th scope="col" className="py-3 px-4 font-semibold">{APP_ROLE_LABEL.admin}</th>
+                <th scope="col" className="py-3 px-4 font-semibold">{APP_ROLE_LABEL.office}</th>
                 <th scope="col" className="py-3 px-4 font-semibold">{APP_ROLE_LABEL.spv}</th>
                 <th scope="col" className="py-3 px-4 font-semibold">{APP_ROLE_LABEL.karyawan}</th>
               </tr>
@@ -411,7 +419,7 @@ export function AccessManager({
               {MATRIX.map((m) => (
                 <tr key={m.area}>
                   <td className="py-2.5 px-5 text-gray-200">{m.area}</td>
-                  {[m.admin, m.spv, m.karyawan].map((v, i) => (
+                  {[m.admin, m.office ?? m.spv, m.spv, m.karyawan].map((v, i) => (
                     <td key={i} className={`py-2.5 px-4 ${v === "-" ? "text-gray-600" : "text-gray-300"}`}>
                       {v}
                     </td>
@@ -526,21 +534,25 @@ export function AccessManager({
                 >
                   <option value="karyawan">{APP_ROLE_LABEL.karyawan}</option>
                   <option value="spv">{APP_ROLE_LABEL.spv}</option>
+                  <option value="office">{APP_ROLE_LABEL.office}</option>
                   <option value="admin">{APP_ROLE_LABEL.admin}</option>
                 </SelectBox>
               </Field>
-              {account.role === "spv" && (
+              {holdsBranches(account.role) && (
                 <Field label="Cabang yang Dipegang" hint="Boleh lebih dari satu cabang.">
                   <BranchMultiPicker value={account.branchIds} options={branches} onChange={(ids) => setAccount({ ...account, branchIds: ids })} />
                 </Field>
               )}
-              {account.role === "spv" && (
-                <Field label="Data Karyawan SPV (untuk absen)" hint="Wajib bila SPV ikut absen lewat app. Data karyawan harus punya penempatan & jabatan.">
+              {attendsSelf(account.role) && (
+                <Field
+                  label={`Data Karyawan ${APP_ROLE_LABEL[account.role]} (untuk absen)`}
+                  hint="Wajib bila ikut absen lewat app. Data karyawan harus punya penempatan & jabatan."
+                >
                   <SearchSelect
                     value={account.employeeId}
                     options={employeeOptions()}
                     onChange={(id) => setAccount({ ...account, employeeId: id })}
-                    emptyLabel="Tanpa data karyawan (SPV tidak absen)"
+                    emptyLabel="Tanpa data karyawan (tidak absen)"
                   />
                 </Field>
               )}

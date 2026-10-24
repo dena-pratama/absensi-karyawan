@@ -67,7 +67,7 @@ export async function updateSession(request: NextRequest) {
   // Akun tanpa role → halaman penjelasan. Data tetap dijaga RLS; fungsi belum ada
   // (migrasi RLS belum dijalankan) atau error lain → perlakukan sebagai admin (mode lama).
   const { data: role, error } = await supabase.rpc("current_app_role");
-  const access = error || role === "admin" ? "admin" : role === "spv" || role === "karyawan" ? "viewer" : "none";
+  const access = error || role === "admin" ? "admin" : role === "spv" || role === "office" || role === "karyawan" ? "viewer" : "none";
 
   if (access === "none") return isDenied ? response : redirectTo(DENIED_PATH);
   if (isDenied) return redirectTo("/");

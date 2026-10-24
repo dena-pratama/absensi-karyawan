@@ -28,14 +28,24 @@ export const ATTENDANCE_LABEL: Record<AttendanceStatus, string> = {
 /** Kode cabang & NIK karyawan bebas format (huruf, angka, simbol, spasi): wajib diisi, maks. 30 karakter. */
 export const CODE_MAX = 30;
 
-/** Role akun login (lihat migrasi role_based_rls). */
-export type AppRole = "admin" | "spv" | "karyawan";
+/** Role akun login (lihat migrasi role_based_rls & office_role). */
+export type AppRole = "admin" | "spv" | "office" | "karyawan";
 
+/** Urutan tingkatan: Admin > Office > SPV > Karyawan. */
 export const APP_ROLE_LABEL: Record<AppRole, string> = {
   admin: "Admin",
+  office: "Office",
   spv: "SPV Cabang",
   karyawan: "Karyawan",
 };
+
+export const APP_ROLES = Object.keys(APP_ROLE_LABEL) as AppRole[];
+
+/** Role yang memilih cabang yang dipegang (SPV). Office otomatis memegang semua cabang. */
+export const holdsBranches = (role: AppRole | "" | null | undefined): role is "spv" => role === "spv";
+
+/** Role yang bisa dihubungkan ke data karyawan untuk absen sendiri lewat app (selain karyawan). */
+export const attendsSelf = (role: AppRole | "" | null | undefined): role is "spv" | "office" => role === "spv" || role === "office";
 
 /** Status kasbon (lihat migrasi kasbon). */
 export type KasbonStatus = "diajukan" | "disetujui" | "ditolak" | "dicairkan" | "lunas" | "dibatalkan";

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import type { AppRole } from "@/lib/labels";
+import { APP_ROLE_LABEL, holdsBranches, type AppRole } from "@/lib/labels";
 import { displayLogin, PASSWORD_MIN, toLoginEmail, USERNAME_HINT } from "@/lib/login-id";
 import { createAdminAuthClient, isAdminApiConfigured } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -16,9 +16,10 @@ export type AccessChange = {
 
 export type AccessResult = { ok: true; applied: number } | { ok: false; error: string; applied: number };
 
-const ROLES: AppRole[] = ["admin", "spv", "karyawan"];
+const ROLES: AppRole[] = ["admin", "spv", "office", "karyawan"];
 
 function friendly(error: { code?: string; message: string }) {
+  if (error.code === "23514" && error.message.includes("app_user_role_check")) return "Role Office belum aktif. Jalankan migrasi 20261027000000_office_role.sql di Supabase.";
   if (error.message.includes("Minimal harus ada satu admin")) return "Minimal harus ada satu admin.";
   if (error.code === "23505") return "Data karyawan itu sudah terhubung ke akun lain.";
   if (error.code === "23503") return "Cabang atau karyawan yang dipilih tidak ditemukan.";
@@ -59,7 +60,7 @@ export async function saveUserAccess(changes: AccessChange[]): Promise<AccessRes
     // Akun sendiri: role tetap admin, hanya hubungan ke data karyawan (untuk kasbon) yang boleh diubah.
     if (c.userId === me && c.role !== "admin") return { ok: false, error: "Hak akses akun sendiri tidak bisa diubah.", applied };
     if (c.role && !ROLES.includes(c.role)) return { ok: false, error: "Role tidak valid.", applied };
-    if (c.role === "spv" && !c.branchIds.length) return { ok: false, error: "Pilih minimal 1 cabang untuk SPV.", applied };
+    if (holdsBranches(c.role) && !c.branchIds.length) return { ok: false, error: `Pilih minimal 1 cabang untuk ${APP_ROLE_LABEL[c.role]}.`, applied };
     if (c.role === "karyawan" && !c.employeeId) return { ok: false, error: "Pilih data karyawan untuk akun karyawan.", applied };
 
     const { error } = c.role
@@ -67,7 +68,7 @@ export async function saveUserAccess(changes: AccessChange[]): Promise<AccessRes
           {
             user_id: c.userId,
             role: c.role,
-            branch_id: c.role === "spv" ? c.branchIds[0] : null,
+            branch_id: holdsBranches(c.role) ? c.branchIds[0] : null,
             employee_id: c.employeeId || null, // admin & SPV opsional (kasbon / absen), karyawan wajib
           },
           { onConflict: "user_id" },
@@ -75,7 +76,7 @@ export async function saveUserAccess(changes: AccessChange[]): Promise<AccessRes
       : await supabase.from("app_user").delete().eq("user_id", c.userId);
     if (error) return { ok: false, error: friendly(error), applied };
     if (c.role) {
-      const bErr = await syncSpvBranches(supabase, c.userId, c.role === "spv" ? c.branchIds : []);
+      const bErr = await syncSpvBranches(supabase, c.userId, holdsBranches(c.role) ? c.branchIds : []);
       if (bErr) return { ok: false, error: bErr, applied };
     }
     applied++;
@@ -112,7 +113,7 @@ export async function createUserAccount(input: NewAccount): Promise<CreateResult
   if (!email) return { ok: false, error: `Username tidak valid. ${USERNAME_HINT}` };
   if (input.password.length < PASSWORD_MIN) return { ok: false, error: `Kata sandi minimal ${PASSWORD_MIN} karakter.` };
   if (!ROLES.includes(input.role)) return { ok: false, error: "Pilih role akun." };
-  if (input.role === "spv" && !input.branchIds.length) return { ok: false, error: "Pilih minimal 1 cabang untuk SPV." };
+  if (holdsBranches(input.role) && !input.branchIds.length) return { ok: false, error: `Pilih minimal 1 cabang untuk ${APP_ROLE_LABEL[input.role]}.` };
   if (input.role === "karyawan" && !input.employeeId) return { ok: false, error: "Pilih data karyawan untuk akun karyawan." };
 
   const authAdmin = createAdminAuthClient();
@@ -127,10 +128,10 @@ export async function createUserAccount(input: NewAccount): Promise<CreateResult
   const { error: roleError } = await supabase.from("app_user").insert({
     user_id: data.user.id,
     role: input.role,
-    branch_id: input.role === "spv" ? input.branchIds[0] : null,
+    branch_id: holdsBranches(input.role) ? input.branchIds[0] : null,
     employee_id: input.employeeId || null,
   });
-  const branchError = roleError ? null : await syncSpvBranches(supabase, data.user.id, input.role === "spv" ? input.branchIds : []);
+  const branchError = roleError ? null : await syncSpvBranches(supabase, data.user.id, holdsBranches(input.role) ? input.branchIds : []);
   if (roleError || branchError) {
     await authAdmin.deleteUser(data.user.id);
     return { ok: false, error: roleError ? friendly(roleError) : branchError! };

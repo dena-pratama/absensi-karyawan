@@ -5,6 +5,39 @@ Format: entri terbaru di paling atas.
 
 ---
 
+## 2026-10-24 — Office di atas SPV: cakupan semua cabang
+
+Koreksi user: urutan role Admin > Office > SPV > Karyawan. Ditanyakan ke user: Office melihat **semua cabang**
+(tidak perlu memilih cabang). Migrasi `20261027000000_office_role.sql` diubah sebelum dijalankan:
+- `my_branch_ids()` untuk office = semua cabang → semua policy SPV berlaku untuk office di semua cabang;
+  `my_branch_id()` kembali khusus SPV; office tidak wajib punya cabang utama.
+- `my_checkin_branches()`: office = semua cabang aktif (cabang nonaktif tidak bisa dipakai absen).
+- Diuji ulang di PGlite: office baca semua cabang (termasuk nonaktif), semua karyawan & absensi, bisa isi absensi
+  cabang mana pun; absen sendiri di cabang mana pun; skenario SPV, karyawan, kasbon tetap sama.
+- Web: urutan Admin, Office, SPV, Karyawan (`APP_ROLES`); Office tanpa pemilih cabang ("Semua cabang · absen sendiri
+  di cabang mana pun"), tetap bisa dihubungkan ke data karyawan; helper `holdsBranches` (SPV) & `attendsSelf` (SPV, Office);
+  matriks aturan akses kolom Office diperbarui.
+
+---
+
+## 2026-10-24 — Role baru: Office
+
+Permintaan user: role Office = sama dengan SPV, bedanya bisa absen di cabang mana saja.
+- Migrasi `20261027000000_office_role.sql` (versi terbaru sudah dijalankan user di Supabase, berhasil):
+  - check role `app_user` + `office`; office juga wajib punya cabang utama;
+  - `my_branch_id`, `my_branch_ids`, `my_employee_id`, `backup_branch_options` berlaku untuk office, jadi semua
+    policy SPV (baca cabang/karyawan/absensi, isi absensi cabangnya, backup, foto selfie) otomatis berlaku;
+  - `attendance_check()`: office boleh memilih semua cabang yang tidak nonaktif (GPS + selfie tetap);
+  - fungsi baru `my_checkin_branches()`: daftar outlet absen yang boleh dipakai hari ini (semua role) untuk app HP.
+  - Diuji di PGlite: office absen di cabang yang tidak dipegang OK, cabang nonaktif tidak muncul, baca data tetap
+    hanya cabang yang dipegang; skenario SPV & karyawan lama tetap sama; skenario kasbon tetap lolos.
+- Web: label "Office", helper `holdsBranches()`, pilihan role & filter, kartu ringkasan 5 role, kolom Office di
+  matriks aturan akses, proxy (Office = hanya-lihat seperti SPV), validasi cabang di server action.
+- Brief ke sesi mobile: role office + `my_checkin_branches()`.
+- `tsc`, `eslint`, `next build` lolos.
+
+---
+
 ## 2026-10-24 — Pengguna & Akses: ubah & hapus akun (CRUD lengkap)
 
 Masukan user: Pengguna & Akses belum ada CRUD (sebelumnya hanya tambah akun + ubah role).
