@@ -7,6 +7,8 @@ import { getDashboardStats, type BranchStats, type StaffToday } from "@/lib/data
 import { getShellData } from "@/lib/data/shell";
 import { formatDateLong, formatTimeWIB, initials, todayWIB } from "@/lib/format";
 import { ATTENDANCE_LABEL, BRANCH_TYPE_LABEL } from "@/lib/labels";
+import { getMyAccess } from "@/lib/data/access";
+import { AiInsightCard } from "./_components/ai-insight-card";
 import { BranchCarousel, type BranchCard } from "./_components/branch-carousel";
 
 export const metadata: Metadata = { title: "Dashboard" };
@@ -44,9 +46,10 @@ async function ActiveBranchCode() {
 }
 
 async function DashboardContent() {
-  const { branches, activeBranch } = await getShellData();
+  const [{ branches, activeBranch }, { role }] = await Promise.all([getShellData(), getMyAccess()]);
   const today = todayWIB();
   const stats = await getDashboardStats(branches, today);
+  const showInsight = (role === "admin" || role === "office") && activeBranch;
   const active = stats.find((s) => s.id === activeBranch?.id) ?? null;
   const aktifCount = stats.filter((s) => s.status === "aktif").length;
 
@@ -63,6 +66,9 @@ async function DashboardContent() {
 
   return (
     <>
+      {/* AI Insight cabang aktif (admin & Office), dimuat terpisah setelah halaman tampil */}
+      {showInsight && <AiInsightCard key={activeBranch.id} branchCode={activeBranch.code} />}
+
       {/* Data Cabang */}
       <section aria-labelledby="cabang-heading">
         <div className="flex items-center justify-between mb-3.5">

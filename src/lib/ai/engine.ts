@@ -31,7 +31,15 @@ type RunParams = {
 const MAX_STEPS = 8;
 const MAX_TOKENS = 16000;
 
-export class AiError extends Error {}
+export class AiError extends Error {
+  /** true = provider menolak karena limit / kuota / kredit habis → sarankan ganti model / platform. */
+  constructor(message: string, readonly limit = false) {
+    super(message);
+  }
+}
+
+const LIMIT_RE = /quota|rate.?limit|too many requests|insufficient|credit|billing|exceeded|usage limit/i;
+export const LIMIT_HINT = "Ganti ke model atau platform lain di Pengaturan > Konektor AI, atau tunggu kuota pulih.";
 
 /** Pesan error ramah dari error SDK provider (status HTTP). */
 function friendlyError(err: unknown): AiError {
@@ -43,7 +51,9 @@ function friendlyError(err: unknown): AiError {
   }
   // Server tidak bisa dihubungi (mis. Ollama di localhost / URL salah)
   if (err instanceof OpenAI.APIConnectionError) return new AiError("Server AI tidak bisa dihubungi. Periksa base URL dan pastikan server bisa diakses dari internet.");
-  if (status === 429) return new AiError("Batas pemakaian / kuota provider tercapai. Coba lagi nanti.");
+  if (status === 429 || status === 402 || (status && status < 500 && LIMIT_RE.test((err as Error)?.message ?? ""))) {
+    return new AiError(`Model AI kena limit / kuota habis di provider. ${LIMIT_HINT}`, true);
+  }
   if (status && status >= 500) return new AiError("Server provider AI sedang bermasalah. Coba lagi nanti.");
   if (err instanceof AiError) return err;
   return new AiError(`Gagal menghubungi AI: ${(err as Error)?.message ?? "error tidak dikenal"}`);

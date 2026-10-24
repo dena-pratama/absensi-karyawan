@@ -7,8 +7,8 @@ import { Icon } from "@/components/icon";
 import { deleteBackup, saveBackup, type BackupInput } from "@/lib/actions/backup";
 import type { BackupRow } from "@/lib/data/backup";
 import { formatDateLong } from "@/lib/format";
-import { Field, Modal, Pagination, SelectBox, Toast, filterCls, inputCls, useToastTimer } from "../_components/ui";
-import { SearchSelect } from "../_components/search-select";
+import { Field, Modal, Pagination, SelectBox, Toast, filterCls, inputCls, useToastTimer } from "../pengaturan/_components/ui";
+import { SearchSelect } from "../pengaturan/_components/search-select";
 
 type EmployeeOption = { id: string; label: string; sub: string; branchId: string };
 type Option = { id: string; label: string };

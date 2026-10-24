@@ -37,6 +37,7 @@ const MATRIX: { area: string; admin: string; office?: string; spv: string; karya
   { area: "Absensi harian (app mobile)", admin: "Baca & ubah", spv: "Isi/ubah cabang-cabangnya (s/d hari ini) + absen sendiri di outlet pilihan", office: "Isi/ubah semua cabang (s/d hari ini) + absen sendiri di cabang mana pun (pilih outlet)", karyawan: "Isi/ubah miliknya, hari ini" },
   { area: "Penugasan backup karyawan", admin: "Buat & ubah (web)", office: "Buat & ubah (app), semua cabang", spv: "Buat & ubah (app), cabang-cabangnya", karyawan: "Lihat miliknya" },
   { area: "Kasbon (web & app)", admin: "Setujui, cairkan, atur gaji + ajukan sendiri", spv: "Ajukan & lihat miliknya", karyawan: "Ajukan & lihat miliknya" },
+  { area: "Smart AI (web)", admin: "Analisis + usulan perubahan absensi", office: "Analisis saja", spv: "-", karyawan: "-" },
   { area: "Master jabatan & cluster", admin: "Baca & ubah", spv: "Baca", karyawan: "Baca" },
   { area: "Log perubahan, konektor AI, hak akses", admin: "Penuh", spv: "-", karyawan: "-" },
 ];

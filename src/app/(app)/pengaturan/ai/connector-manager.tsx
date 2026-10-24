@@ -116,6 +116,21 @@ export function ConnectorManager({
         </div>
       )}
 
+      {active?.limitedAt && (
+        <div role="alert" className="rounded-2xl border border-amber-500/50 bg-amber-950/30 p-4 text-xs text-amber-100 flex gap-3">
+          <Icon name="speed" className="text-[22px] text-amber-400 flex-shrink-0" />
+          <div className="space-y-1">
+            <p className="font-semibold text-sm">
+              {AI_PROVIDERS[active.provider].label} · {active.model} kena limit ({formatUpdated(active.limitedAt)})
+            </p>
+            <p>{active.limitMessage}</p>
+            <p className="text-amber-300">
+              Pilih provider lain di bawah (mis. yang sudah Tersimpan), lalu klik Simpan &amp; Aktifkan. Atau ganti model di provider yang sama lalu Simpan.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Kartu provider */}
       <section aria-label="Pilih provider" className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
         {PROVIDERS.map((p) => {
@@ -138,14 +153,16 @@ export function ConnectorManager({
                   <span
                     className={`text-[10px] px-2 py-0.5 rounded-full border ${
                       "flex-shrink-0 " +
-                      (c?.isActive
+                      (c?.limitedAt
+                        ? "bg-amber-500/15 text-amber-300 border-amber-500/40"
+                        : c?.isActive
                         ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/40"
                         : c
                           ? "bg-cyan-500/10 text-cyan-300 border-cyan-500/30"
                           : "bg-gray-500/10 text-gray-400 border-gray-500/30")
                     }`}
                   >
-                    {c?.isActive ? "● Aktif" : c ? "Tersimpan" : "Belum"}
+                    {c?.limitedAt ? "Kena limit" : c?.isActive ? "● Aktif" : c ? "Tersimpan" : "Belum"}
                   </span>
                 </div>
                 <div className="text-xs text-gray-300 font-mono truncate">{c?.model ?? "-"}</div>

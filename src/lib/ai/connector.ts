@@ -1,4 +1,5 @@
 import "server-only";
+import { createServiceClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { decryptSecret } from "./crypto";
 import type { AiProvider, ConnectorInfo } from "./providers";
@@ -9,6 +10,8 @@ type Row = {
   api_key_ciphertext: string;
   api_key_last4: string;
   base_url?: string | null; // ada setelah migrasi ai_more_providers
+  limited_at?: string | null; // ada setelah migrasi ai_limit_alert
+  limit_message?: string | null;
   is_active: boolean;
   updated_at: string;
 };
@@ -18,7 +21,8 @@ export async function getConnectors(): Promise<{ connectors: ConnectorInfo[]; ta
   const supabase = await createClient();
   const query = (cols: string) => supabase.from("ai_connector").select(cols).order("provider");
   // Kolom base_url belum ada sebelum migrasi ai_more_providers → ulang tanpa kolom itu.
-  let res = await query("provider, model, api_key_last4, base_url, is_active, updated_at");
+  let res = await query("provider, model, api_key_last4, base_url, limited_at, limit_message, is_active, updated_at");
+  if (res.error?.code === "42703") res = await query("provider, model, api_key_last4, base_url, is_active, updated_at");
   if (res.error?.code === "42703") res = await query("provider, model, api_key_last4, is_active, updated_at");
   const { error } = res;
   const data = res.data as unknown as Row[] | null;
@@ -34,6 +38,8 @@ export async function getConnectors(): Promise<{ connectors: ConnectorInfo[]; ta
       model: r.model as string,
       last4: r.api_key_last4 as string,
       baseUrl: r.base_url ?? null,
+      limitedAt: r.limited_at ?? null,
+      limitMessage: r.limit_message ?? null,
       isActive: r.is_active as boolean,
       updatedAt: r.updated_at as string,
     })),
@@ -41,8 +47,17 @@ export async function getConnectors(): Promise<{ connectors: ConnectorInfo[]; ta
 }
 
 /** Konektor aktif + API key terdekripsi (hanya di server). */
-export async function getActiveConnector(): Promise<{ provider: AiProvider; model: string; apiKey: string; baseUrl: string | null } | null> {
-  const supabase = await createClient();
+/**
+ * service=true: baca lewat secret key, untuk role Office yang memakai Smart AI tapi tidak
+ * boleh membaca tabel ai_connector (RLS khusus admin). Key tetap hanya didekripsi di server.
+ */
+export async function getActiveConnector({ service = false } = {}): Promise<{
+  provider: AiProvider;
+  model: string;
+  apiKey: string;
+  baseUrl: string | null;
+} | null> {
+  const supabase = service ? createServiceClient() : await createClient();
   const query = (cols: string) => supabase.from("ai_connector").select(cols).eq("is_active", true).maybeSingle();
   let res = await query("provider, model, api_key_ciphertext, base_url");
   if (res.error?.code === "42703") res = await query("provider, model, api_key_ciphertext");

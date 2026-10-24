@@ -16,7 +16,7 @@ type ProposalState = SignedProposal & { state: "pending" | "approving" | "approv
 
 type Message =
   | { id: string; role: "user"; text: string }
-  | { id: string; role: "assistant"; text: string; proposals: ProposalState[]; error?: boolean };
+  | { id: string; role: "assistant"; text: string; proposals: ProposalState[]; error?: boolean; limit?: boolean; canManage?: boolean };
 
 const STORAGE_KEY = "smart-ai-chat";
 const SUGGESTIONS = [
@@ -103,7 +103,7 @@ export function SmartAiChat() {
         ...m,
         res.ok
           ? { id: uid(), role: "assistant", text: res.reply, proposals: res.proposals.map((p) => ({ ...p, state: "pending" as const })) }
-          : { id: uid(), role: "assistant", text: res.error, proposals: [], error: true },
+          : { id: uid(), role: "assistant", text: res.error, proposals: [], error: true, limit: res.limit, canManage: res.canManage },
       ]);
       if (res.ok) setModel(res.model);
     });
@@ -225,10 +225,30 @@ export function SmartAiChat() {
                 <div key={m.id} className="self-start max-w-[95%] flex flex-col gap-2">
                   <div
                     className={`rounded-2xl rounded-bl-md px-3.5 py-2.5 text-xs leading-relaxed ${
-                      m.error ? "bg-rose-950/30 border border-rose-500/30 text-rose-200" : "bg-panel border border-line text-gray-200"
+                      m.limit
+                        ? "bg-amber-950/30 border border-amber-500/40 text-amber-100"
+                        : m.error
+                          ? "bg-rose-950/30 border border-rose-500/30 text-rose-200"
+                          : "bg-panel border border-line text-gray-200"
                     }`}
                   >
-                    {m.error ? (
+                    {m.limit ? (
+                      <div className="flex gap-2">
+                        <Icon name="speed" className="text-[16px] text-amber-400 flex-shrink-0" />
+                        <div className="space-y-1.5">
+                          <p className="font-semibold">Model AI kena limit</p>
+                          <p>{m.text}</p>
+                          {m.canManage ? (
+                            <Link href="/pengaturan/ai" className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-400 text-black font-semibold">
+                              <Icon name="swap_horiz" className="text-[14px]" />
+                              Ganti model / platform
+                            </Link>
+                          ) : (
+                            <p className="text-amber-300">Minta admin mengganti model di Pengaturan &gt; Konektor AI.</p>
+                          )}
+                        </div>
+                      </div>
+                    ) : m.error ? (
                       <p className="flex gap-2">
                         <Icon name="error" className="text-[16px] text-rose-400 flex-shrink-0" />
                         <span>

@@ -114,6 +114,9 @@ export type ConnectorInfo = {
   model: string;
   last4: string;
   baseUrl: string | null;
+  /** Waktu terakhir provider menolak karena limit / kuota (null = normal). */
+  limitedAt: string | null;
+  limitMessage: string | null;
   isActive: boolean;
   updatedAt: string;
 };

@@ -1,20 +1,21 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { PageBody } from "@/components/shell/page-layout";
+import { BranchCrumb } from "@/components/shell/branch-crumb";
+import { PageBody, PageHeader } from "@/components/shell/page-layout";
 import { getBackups } from "@/lib/data/backup";
 import { getBranchSettings, getEmployeeSettings } from "@/lib/data/settings";
 import { shiftDay, todayWIB } from "@/lib/format";
-import { SettingsHeader } from "../_components/settings-header";
-import { SettingsSkeleton } from "../_components/settings-skeleton";
+import { SettingsSkeleton } from "../pengaturan/_components/settings-skeleton";
 import { BackupManager } from "./backup-manager";
 
 export const metadata: Metadata = { title: "Backup Karyawan" };
 
+/** Menu sendiri di sidebar (di bawah Absensi & Karyawan), khusus admin. */
 export default function BackupKaryawanPage() {
   return (
     <>
-      <SettingsHeader tab="backup" />
+      <PageHeader crumb={<BranchCrumb />} current="Backup Karyawan" title="Penugasan Backup Antar Cabang" />
       <PageBody>
         <Suspense fallback={<SettingsSkeleton />}>
           <Content />

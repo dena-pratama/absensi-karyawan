@@ -10,10 +10,10 @@ async function RoleSidebar({ className }: { className: string }) {
   return <Sidebar className={className} readOnly={role !== "admin"} />;
 }
 
-/** Smart AI bisa mengusulkan perubahan data → khusus admin. */
+/** Smart AI: admin (bisa mengusulkan perubahan data) dan Office (analisis saja). */
 async function AdminAiChat() {
   const { role } = await getMyAccess();
-  return role === "admin" ? <SmartAiChat /> : null;
+  return role === "admin" || role === "office" ? <SmartAiChat /> : null;
 }
 
 /**

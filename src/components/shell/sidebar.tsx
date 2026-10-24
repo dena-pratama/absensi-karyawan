@@ -15,6 +15,8 @@ const ICONS = {
     "M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
   kasbon:
     "M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z",
+  backup:
+    "M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4",
   logout:
     "M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1",
 };
@@ -39,12 +41,13 @@ type NavItem = { href: string; label: string; paths: string[]; match: (p: string
 const MAIN_NAV: NavItem[] = [
   { href: "/", label: "Dashboard", paths: [ICONS.dashboard], match: (p) => p === "/" },
   { href: "/absensi", label: "Absensi & Karyawan", paths: [ICONS.absensi], match: (p) => p.startsWith("/absensi") },
+  { href: "/backup", label: "Backup Karyawan", paths: [ICONS.backup], match: (p) => p.startsWith("/backup") },
   { href: "/laporan", label: "Laporan", paths: [ICONS.laporan], match: (p) => p.startsWith("/laporan") },
   { href: "/kasbon", label: "Kasbon", paths: [ICONS.kasbon], match: (p) => p.startsWith("/kasbon") },
 ];
 
 /** Menu untuk akun hanya-lihat (sama dengan VIEWER_PATHS di proxy): tanpa Laporan Absensi. */
-const VIEWER_NAV = MAIN_NAV.filter((i) => i.href !== "/laporan");
+const VIEWER_NAV = MAIN_NAV.filter((i) => i.href !== "/laporan" && i.href !== "/backup");
 
 const SETTINGS_NAV: NavItem = {
   href: "/pengaturan",

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getStoredKey } from "@/lib/ai/connector";
 import { encryptSecret, isAiKeyConfigured } from "@/lib/ai/crypto";
+import { setConnectorLimit } from "@/lib/ai/limit";
 import { AiError, listModels } from "@/lib/ai/engine";
 import { AI_PROVIDERS, isAiProvider, needsBaseUrl, type AiProvider } from "@/lib/ai/providers";
 import { READ_ONLY_ERROR, isAdmin } from "@/lib/data/access";
@@ -107,6 +108,7 @@ export async function saveConnector(input: {
     };
   }
 
+  await setConnectorLimit(provider, null); // disimpan ulang (mis. ganti model) = anggap limit selesai
   revalidatePath("/pengaturan/ai");
   return { ok: true, message: activate ? "Konektor disimpan dan diaktifkan." : "Konektor disimpan." };
 }

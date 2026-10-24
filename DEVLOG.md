@@ -5,6 +5,65 @@ Format: entri terbaru di paling atas.
 
 ---
 
+## 2026-10-24 — Peringatan AI kena limit
+
+Permintaan user: alert / pengingat saat model AI kena limit, dan saran ganti model / platform.
+- `engine.ts`: `AiError.limit` untuk HTTP 429 / 402 atau pesan quota / rate limit / credit / billing; pesan berisi
+  saran ganti model / platform di Konektor AI.
+- `lib/ai/limit.ts` `setConnectorLimit`: catat `limited_at` + `limit_message` pada konektor (secret key, karena Office
+  juga memakai AI); dihapus otomatis saat panggilan berikutnya berhasil atau konektor disimpan ulang.
+- Alert kuning "Model AI kena limit" di chat Smart AI dan kartu AI Insight: admin dapat tombol "Ganti model / platform",
+  Office diminta menghubungi admin. Halaman Konektor AI: banner + badge "Kena limit" di kartu provider.
+- Migrasi `20261029000000_ai_limit_alert.sql` (sudah dijalankan user, berhasil): kolom `limited_at`, `limit_message`.
+  Tanpa migrasi, alert di chat/dashboard tetap muncul; hanya penanda di halaman Konektor AI yang belum tersimpan.
+- `tsc`, `eslint`, `next build` lolos.
+
+---
+
+## 2026-10-24 — AI Insight otomatis di Dashboard
+
+Keputusan user: kartu AI Insight di dashboard, otomatis 1x per hari per cabang, disimpan (cache), tombol Perbarui,
+untuk admin & Office.
+- Migrasi `20261028000000_ai_insight.sql` (sudah dijalankan user, berhasil): tabel `ai_insight` (branch_id, insight_date,
+  content, model). RLS aktif tanpa policy: hanya server (secret key) yang membaca/menulis setelah cek role.
+- `lib/actions/ai-insight.ts` `getBranchInsight(force)`: pakai cache hari ini bila ada, selain itu panggil konektor AI
+  aktif dengan tool baca saja (tanpa usulan perubahan), data lewat RLS akun yang login, hasil disimpan.
+- `_components/ai-insight-card.tsx`: kartu di atas Data Cabang, dimuat setelah halaman tampil (skeleton), info model &
+  jam dibuat, tombol Perbarui. Ganti cabang aktif = insight cabang itu.
+- `tsc`, `eslint`, `next build` lolos. Belum dicoba dengan konektor AI sungguhan.
+
+---
+
+## 2026-10-24 — Backup Karyawan jadi menu sendiri
+
+Permintaan user: Backup Karyawan dipisah dari Pengaturan, masuk sidebar di bawah Absensi & Karyawan.
+- Halaman pindah `/pengaturan/backup` → `/backup` (header sendiri "Penugasan Backup Antar Cabang"); tab di Pengaturan dihapus.
+- Sidebar: ikon Backup Karyawan di bawah Absensi & Karyawan, khusus admin (SPV/Office/karyawan tidak melihat; proxy
+  tetap menolak `/backup` untuk mereka karena bukan VIEWER_PATHS).
+- `tsc`, `eslint`, `next build` lolos.
+
+---
+
+## 2026-10-24 — Smart AI untuk role Office
+
+Permintaan user: Smart AI juga muncul di web untuk Office.
+- Tombol Smart AI tampil untuk admin & Office. Office = analisis saja: tool `usulkan_perubahan_absensi` dihapus dari
+  daftar tool & ditolak di executor, prompt sistem menyebut pengguna hanya-lihat. Data dibaca lewat RLS user (Office =
+  semua cabang).
+- Konektor aktif untuk Office dibaca lewat `createServiceClient()` (secret key, server-only) karena tabel
+  `ai_connector` khusus admin; API key tetap hanya didekripsi di server, tidak pernah ke browser.
+- Matriks aturan akses: baris "Smart AI (web)". `tsc`, `eslint`, `next build` lolos; belum dicoba dengan akun Office.
+
+---
+
+## 2026-10-24 — Tabel Master Karyawan responsif
+
+Masukan user: tabel Manajemen Karyawan harus digeser ke samping. Tabel tidak lagi memakai lebar minimum 760px;
+kolom sekunder disembunyikan bertahap (Kontrak < xl, No. WA < lg, Cabang < md) dan informasinya pindah ke bawah nama
+staf. Kolom Aktif & Aksi selalu tampil. `tsc` & `eslint` lolos, belum dicek di browser (perlu login).
+
+---
+
 ## 2026-10-24 — Office di atas SPV: cakupan semua cabang
 
 Koreksi user: urutan role Admin > Office > SPV > Karyawan. Ditanyakan ke user: Office melihat **semua cabang**
