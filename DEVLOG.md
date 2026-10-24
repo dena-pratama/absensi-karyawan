@@ -5,6 +5,19 @@ Format: entri terbaru di paling atas.
 
 ---
 
+## 2026-10-24 — Hapus data di Karyawan, Cabang, Jabatan (CRUD lengkap)
+
+Masukan user: Manajemen Karyawan, Manajemen Cabang, dan Master Jabatan belum ada CRUD (sebelumnya tambah, lihat, ubah,
+nonaktifkan; belum ada hapus).
+- Server action `deleteEmployee`, `deleteBranch`, `deleteRole` (admin). Data yang sudah punya riwayat (absensi, akun,
+  kasbon, penempatan, backup) ditolak database (FK restrict) dengan pesan yang menyarankan menonaktifkan saja.
+- Tombol hapus (ikon tong sampah) di samping Edit di ketiga tabel. Baris baru yang belum diterapkan cukup dibuang dari
+  daftar; data tersimpan dihapus permanen setelah konfirmasi. Tombol nonaktif selama ada perubahan yang belum
+  diterapkan (supaya draf tidak hilang saat halaman dimuat ulang).
+- `tsc`, `eslint`, `next build` lolos. Belum dicoba di browser.
+
+---
+
 ## 2026-10-24 — WFA untuk SPV & Office, Office deteksi outlet otomatis
 
 Keputusan user: SPV & Office bisa WFA; koordinat tetap tercatat; absensi tampil di cabang utama. Office tanpa pilihan

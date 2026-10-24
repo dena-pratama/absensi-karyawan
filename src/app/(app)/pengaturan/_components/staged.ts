@@ -42,6 +42,8 @@ export function useStaged<T extends { id: string }>(initial: T[]) {
     upsert: (row: T) =>
       setRows((prev) => (prev.some((r) => r.id === row.id) ? prev.map((r) => (r.id === row.id ? row : r)) : [row, ...prev])),
     patch: (id: string, p: Partial<T>) => setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...p } : r))),
+    /** Buang baris dari daftar (dipakai untuk baris baru yang belum diterapkan). */
+    remove: (id: string) => setRows((prev) => prev.filter((r) => r.id !== id)),
     reset: () => setRows(initial),
   };
 }

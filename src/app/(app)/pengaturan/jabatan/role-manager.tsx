@@ -3,11 +3,11 @@
 import { useCallback, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/icon";
-import { applyRoleChanges } from "@/lib/actions/settings";
+import { applyRoleChanges, deleteRole } from "@/lib/actions/settings";
 import type { RoleSetting } from "@/lib/data/settings";
 import { StatCard } from "../_components/settings-skeleton";
 import { newId, useStaged } from "../_components/staged";
-import { ApplyBar, ChangeBadge, Field, filterCls, inputCls, Modal, Toast, Toggle, useToastTimer } from "../_components/ui";
+import { DeleteButton, ApplyBar, ChangeBadge, Field, filterCls, inputCls, Modal, Toast, Toggle, useToastTimer } from "../_components/ui";
 
 export function RoleManager({
   roles,
@@ -26,6 +26,17 @@ export function RoleManager({
   const [toast, setToast] = useState<{ text: string; error: boolean } | null>(null);
   const [saving, startSaving] = useTransition();
   const clearToast = useCallback(() => setToast(null), []);
+
+  /** Baris baru (belum diterapkan) cukup dibuang; data tersimpan dihapus permanen di database. */
+  const removeRow = (id: string, label: string) => {
+    if (staged.isNew(id)) return staged.remove(id);
+    if (!window.confirm(`Hapus jabatan ${label} secara permanen?`)) return;
+    startSaving(async () => {
+      const res = await deleteRole(id);
+      setToast(res.ok ? { text: `Jabatan ${label} dihapus.`, error: false } : { text: res.error, error: true });
+      if (res.ok) router.refresh();
+    });
+  };
   useToastTimer(toast, clearToast);
 
   const q = query.trim().toLowerCase();
@@ -155,6 +166,12 @@ export function RoleManager({
                     >
                       <Icon name="edit_square" className="text-[18px]" />
                     </button>
+                        <DeleteButton
+                          label={r.name}
+                          onClick={() => removeRow(r.id, r.name)}
+                          disabled={saving || (staged.dirty && !staged.isNew(r.id))}
+                          title={staged.dirty && !staged.isNew(r.id) ? "Terapkan atau reset perubahan dulu" : "Hapus"}
+                        />
                   </td>
                 </tr>
               ))}

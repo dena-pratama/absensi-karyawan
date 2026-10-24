@@ -3,7 +3,7 @@
 import { useCallback, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/icon";
-import { applyBranchChanges } from "@/lib/actions/settings";
+import { applyBranchChanges, deleteBranch } from "@/lib/actions/settings";
 import type { BranchSetting, Option } from "@/lib/data/settings";
 import { formatLatLng, GEOFENCE_DEFAULT_M, GEOFENCE_MAX_M, GEOFENCE_MIN_M } from "@/lib/geo";
 import { BRANCH_TYPE_LABEL, CODE_MAX, type BranchType } from "@/lib/labels";
@@ -21,6 +21,7 @@ import {
   Toast,
   Toggle,
   useToastTimer,
+  DeleteButton,
 } from "../_components/ui";
 
 export type AuditView = { id: number; text: string; subject: string; when: string };
@@ -83,6 +84,17 @@ export function BranchManager({
   const [toast, setToast] = useState<{ text: string; error: boolean } | null>(null);
   const [saving, startSaving] = useTransition();
   const clearToast = useCallback(() => setToast(null), []);
+
+  /** Baris baru (belum diterapkan) cukup dibuang; data tersimpan dihapus permanen di database. */
+  const removeRow = (id: string, label: string) => {
+    if (staged.isNew(id)) return staged.remove(id);
+    if (!window.confirm(`Hapus cabang ${label} secara permanen?`)) return;
+    startSaving(async () => {
+      const res = await deleteBranch(id);
+      setToast(res.ok ? { text: `Cabang ${label} dihapus.`, error: false } : { text: res.error, error: true });
+      if (res.ok) router.refresh();
+    });
+  };
   useToastTimer(toast, clearToast);
 
   const employeeById = new Map(employees.map((e) => [e.id, e]));
@@ -300,6 +312,12 @@ export function BranchManager({
                         >
                           <Icon name="edit_square" className="text-[18px]" />
                         </button>
+                        <DeleteButton
+                          label={b.code}
+                          onClick={() => removeRow(b.id, b.code)}
+                          disabled={saving || (staged.dirty && !staged.isNew(b.id))}
+                          title={staged.dirty && !staged.isNew(b.id) ? "Terapkan atau reset perubahan dulu" : "Hapus"}
+                        />
                       </td>
                     </tr>
                   );

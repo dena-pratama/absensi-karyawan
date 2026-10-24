@@ -268,3 +268,46 @@ export async function applyRoleChanges(rows: RoleSetting[]): Promise<ApplyResult
   revalidatePath("/", "layout");
   return { ok: true, applied };
 }
+
+/* ------------------------------- Hapus data ------------------------------- */
+
+export type DeleteResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * Hapus permanen satu baris master. Data yang sudah punya riwayat (absensi, akun login, kasbon,
+ * penempatan aktif) ditolak database (FK restrict) → sarankan dinonaktifkan supaya riwayat tetap utuh.
+ */
+async function deleteRow(table: "employee" | "branch" | "job_role", id: string, inUse: string): Promise<DeleteResult> {
+  if (!(await isAdmin())) return { ok: false, error: READ_ONLY_ERROR };
+  if (!id || isNew(id)) return { ok: false, error: "Data belum tersimpan." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.from(table).delete().eq("id", id).select("id");
+  if (error) return { ok: false, error: error.code === "23503" ? inUse : "Gagal menghapus data." };
+  if (!data?.length) return { ok: false, error: "Data tidak ditemukan atau sudah dihapus." };
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+export async function deleteEmployee(id: string) {
+  return deleteRow(
+    "employee",
+    id,
+    "Karyawan ini sudah punya riwayat (absensi, akun login, atau kasbon), jadi tidak bisa dihapus. Nonaktifkan saja supaya riwayatnya tetap tersimpan.",
+  );
+}
+
+export async function deleteBranch(id: string) {
+  return deleteRow(
+    "branch",
+    id,
+    "Cabang ini masih dipakai (penempatan karyawan, absensi, akun SPV, atau backup), jadi tidak bisa dihapus. Ubah statusnya ke Nonaktif saja.",
+  );
+}
+
+export async function deleteRole(id: string) {
+  return deleteRow(
+    "job_role",
+    id,
+    "Jabatan ini masih dipakai karyawan atau riwayat absensi, jadi tidak bisa dihapus. Nonaktifkan saja.",
+  );
+}

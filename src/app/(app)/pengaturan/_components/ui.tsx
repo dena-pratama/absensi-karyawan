@@ -209,6 +209,22 @@ export function ApplyBar({
 
 export { Toast } from "@/components/toast";
 
+/** Tombol hapus baris tabel (ikon tong sampah). */
+export function DeleteButton({ label, disabled, title, onClick }: { label: string; disabled?: boolean; title?: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      title={title ?? "Hapus"}
+      aria-label={`Hapus ${label}`}
+      onClick={onClick}
+      disabled={disabled}
+      className="p-1 text-gray-400 hover:text-rose-400 transition disabled:opacity-40 disabled:pointer-events-none"
+    >
+      <Icon name="delete" className="text-[18px]" />
+    </button>
+  );
+}
+
 /** Badge "Baru" / "Diubah" pada baris yang belum diterapkan. */
 export function ChangeBadge({ isNew, changed }: { isNew: boolean; changed: boolean }) {
   if (!isNew && !changed) return null;

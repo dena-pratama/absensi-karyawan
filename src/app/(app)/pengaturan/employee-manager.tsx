@@ -5,7 +5,7 @@ import { useCallback, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { DateInput } from "@/components/date-input";
 import { Icon } from "@/components/icon";
-import { applyEmployeeChanges } from "@/lib/actions/settings";
+import { applyEmployeeChanges, deleteEmployee } from "@/lib/actions/settings";
 import type { BranchSetting, EmployeeSetting, RoleSetting } from "@/lib/data/settings";
 import { formatDateLong, initials } from "@/lib/format";
 import { BRANCH_TYPE_LABEL, CODE_MAX } from "@/lib/labels";
@@ -23,6 +23,7 @@ import {
   Toast,
   Toggle,
   useToastTimer,
+  DeleteButton,
 } from "./_components/ui";
 
 const PER_PAGE = 10;
@@ -84,6 +85,17 @@ export function EmployeeManager({
   const [toast, setToast] = useState<{ text: string; error: boolean } | null>(null);
   const [saving, startSaving] = useTransition();
   const clearToast = useCallback(() => setToast(null), []);
+
+  /** Baris baru (belum diterapkan) cukup dibuang; data tersimpan dihapus permanen di database. */
+  const removeRow = (id: string, label: string) => {
+    if (staged.isNew(id)) return staged.remove(id);
+    if (!window.confirm(`Hapus karyawan ${label} secara permanen?`)) return;
+    startSaving(async () => {
+      const res = await deleteEmployee(id);
+      setToast(res.ok ? { text: `Karyawan ${label} dihapus.`, error: false } : { text: res.error, error: true });
+      if (res.ok) router.refresh();
+    });
+  };
   useToastTimer(toast, clearToast);
 
   const branchById = new Map(branches.map((b) => [b.id, b]));
@@ -322,6 +334,12 @@ export function EmployeeManager({
                         >
                           <Icon name="edit_square" className="text-[18px]" />
                         </button>
+                        <DeleteButton
+                          label={e.name}
+                          onClick={() => removeRow(e.id, e.name)}
+                          disabled={saving || (staged.dirty && !staged.isNew(e.id))}
+                          title={staged.dirty && !staged.isNew(e.id) ? "Terapkan atau reset perubahan dulu" : "Hapus"}
+                        />
                       </td>
                     </tr>
                   );
