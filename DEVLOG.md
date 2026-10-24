@@ -5,6 +5,19 @@ Format: entri terbaru di paling atas.
 
 ---
 
+## 2026-10-24 — Pengguna & Akses: ubah & hapus akun (CRUD lengkap)
+
+Masukan user: Pengguna & Akses belum ada CRUD (sebelumnya hanya tambah akun + ubah role).
+- Server action baru di `lib/actions/access.ts` (butuh `SUPABASE_SECRET_KEY`, cek admin):
+  - `updateUserAccount`: ubah username / email dan/atau reset kata sandi (min. 6 karakter), isian kosong = tidak diubah;
+  - `deleteUserAccount`: hapus role dulu (trigger "minimal satu admin" tetap menjaga), lalu akun Auth. Akun sendiri
+    tidak bisa dihapus. Data karyawan, absensi, dan kasbon tetap ada (kolom pembuat jadi kosong).
+- Tabel akun: tombol "Ubah login / sandi" dan "Hapus" di bawah nama akun; popup Ubah Akun. Hapus dinonaktifkan selama
+  role akun itu masih berupa draf yang belum diterapkan.
+- `tsc`, `eslint`, `next build` lolos. Belum dicoba di browser (perlu login).
+
+---
+
 ## 2026-10-24 — Konektor AI: provider tambahan (DeepSeek, Ollama, dll)
 
 Permintaan user: konektor AI bisa pakai model lain selain Claude / OpenAI / Gemini.

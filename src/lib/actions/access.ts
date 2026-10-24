@@ -139,3 +139,66 @@ export async function createUserAccount(input: NewAccount): Promise<CreateResult
   revalidatePath("/pengaturan/akses");
   return { ok: true, login: displayLogin(email) };
 }
+
+export type AccountResult = { ok: true; message: string } | { ok: false; error: string };
+
+/** Cek admin + Admin API untuk aksi akun (ubah login / kata sandi, hapus). */
+async function adminContext() {
+  if (!isAdminApiConfigured) return { error: "SUPABASE_SECRET_KEY belum diatur di server." } as const;
+  const supabase = await createClient();
+  const [{ data: isAdmin }, { data: auth }] = await Promise.all([supabase.rpc("is_admin"), supabase.auth.getClaims()]);
+  if (isAdmin !== true) return { error: "Hanya admin yang boleh mengubah akun." } as const;
+  return { supabase, me: auth?.claims?.sub ?? null, authAdmin: createAdminAuthClient() } as const;
+}
+
+/**
+ * Ubah username / email dan/atau kata sandi akun. Isian kosong = tidak diubah.
+ * Kata sandi baru langsung berlaku; sesi yang sedang login di perangkat lain tetap jalan sampai token habis.
+ */
+export async function updateUserAccount(input: { userId: string; login: string; password: string }): Promise<AccountResult> {
+  const ctx = await adminContext();
+  if ("error" in ctx) return { ok: false, error: ctx.error! };
+
+  const login = input.login.trim();
+  const email = login ? toLoginEmail(login) : null;
+  if (login && !email) return { ok: false, error: `Username tidak valid. ${USERNAME_HINT}` };
+  if (input.password && input.password.length < PASSWORD_MIN) return { ok: false, error: `Kata sandi minimal ${PASSWORD_MIN} karakter.` };
+
+  const { data: current, error: getError } = await ctx.authAdmin.getUserById(input.userId);
+  if (getError || !current.user) return { ok: false, error: "Akun tidak ditemukan." };
+
+  const changes: { email?: string; email_confirm?: boolean; password?: string } = {};
+  if (email && email !== current.user.email) Object.assign(changes, { email, email_confirm: true });
+  if (input.password) changes.password = input.password;
+  if (!Object.keys(changes).length) return { ok: true, message: "Tidak ada perubahan." };
+
+  const { error } = await ctx.authAdmin.updateUserById(input.userId, changes);
+  if (error) {
+    if (error.code === "email_exists" || error.code === "user_already_exists") return { ok: false, error: `Username / email ${displayLogin(email!)} sudah dipakai.` };
+    if (error.code === "weak_password" || error.code === "same_password") return { ok: false, error: "Kata sandi ditolak. Coba kata sandi lain." };
+    return { ok: false, error: "Gagal mengubah akun." };
+  }
+
+  revalidatePath("/pengaturan/akses");
+  const what = [changes.email && "username", changes.password && "kata sandi"].filter(Boolean).join(" & ");
+  return { ok: true, message: `Akun ${displayLogin(email ?? current.user.email ?? "")} diperbarui (${what}).` };
+}
+
+/**
+ * Hapus akun login permanen. Role dihapus dulu lewat client admin yang login (trigger
+ * "minimal satu admin" tetap menjaga), baru akun Auth-nya. Data karyawan & absensi tidak ikut terhapus.
+ */
+export async function deleteUserAccount(userId: string): Promise<AccountResult> {
+  const ctx = await adminContext();
+  if ("error" in ctx) return { ok: false, error: ctx.error! };
+  if (userId === ctx.me) return { ok: false, error: "Akun sendiri tidak bisa dihapus." };
+
+  const { error: roleError } = await ctx.supabase.from("app_user").delete().eq("user_id", userId);
+  if (roleError) return { ok: false, error: friendly(roleError) };
+
+  const { error } = await ctx.authAdmin.deleteUser(userId);
+  if (error) return { ok: false, error: "Role sudah dicabut, tapi akun gagal dihapus. Coba lagi." };
+
+  revalidatePath("/pengaturan/akses");
+  return { ok: true, message: "Akun dihapus." };
+}

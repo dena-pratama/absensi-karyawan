@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/icon";
-import { createUserAccount, saveUserAccess, type NewAccount } from "@/lib/actions/access";
+import { createUserAccount, deleteUserAccount, saveUserAccess, updateUserAccount, type NewAccount } from "@/lib/actions/access";
 import type { UserAccess } from "@/lib/data/access";
 import { APP_ROLE_LABEL, type AppRole } from "@/lib/labels";
 import { PASSWORD_MIN, USERNAME_HINT, usernameFromNik } from "@/lib/login-id";
@@ -113,6 +113,36 @@ export function AccessManager({
       router.refresh();
     });
 
+  // Ubah username / kata sandi & hapus akun (langsung diterapkan, bukan draf)
+  const [edit, setEdit] = useState<{ userId: string; current: string; login: string; password: string } | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [showEditPassword, setShowEditPassword] = useState(false);
+  const [accountBusy, startAccountBusy] = useTransition();
+  const openEdit = (userId: string) => {
+    const current = userById.get(userId)?.email ?? "";
+    setEditError(null);
+    setShowEditPassword(false);
+    setEdit({ userId, current, login: current, password: "" });
+  };
+  const saveEdit = () =>
+    startAccountBusy(async () => {
+      if (!edit) return;
+      const res = await updateUserAccount({ userId: edit.userId, login: edit.login === edit.current ? "" : edit.login, password: edit.password });
+      if (!res.ok) return setEditError(res.error);
+      setEdit(null);
+      setToast({ text: res.message, error: false });
+      router.refresh();
+    });
+  const removeAccount = (userId: string) => {
+    const login = userById.get(userId)?.email ?? "akun ini";
+    if (!window.confirm(`Hapus akun ${login} secara permanen? Akun tidak bisa login lagi. Data karyawan & absensinya tetap ada.`)) return;
+    startAccountBusy(async () => {
+      const res = await deleteUserAccount(userId);
+      setToast(res.ok ? { text: `Akun ${login} dihapus.`, error: false } : { text: res.error, error: true });
+      if (res.ok) router.refresh();
+    });
+  };
+
   // Cakupan yang tidak relevan untuk role baru dikosongkan (SPV → cabang, karyawan → data karyawan).
   const changeRole = (id: string, role: AppRole | "") => {
     const cur = staged.rows.find((r) => r.id === id);
@@ -176,7 +206,7 @@ export function AccessManager({
             </h2>
             <p className="text-[11px] text-gray-400 mt-0.5">
               {adminApiReady
-                ? "Tambah akun langsung dari sini, atau atur role akun yang sudah ada."
+                ? "Tambah, ubah login / kata sandi, hapus akun, dan atur role langsung dari sini."
                 : "Akun baru dibuat di Supabase → Authentication → Users, lalu diberi role di sini."}
             </p>
           </div>
@@ -226,7 +256,7 @@ export function AccessManager({
           <div className="px-5 py-2.5 border-b border-line bg-amber-950/20 text-[11px] text-amber-200 flex items-center gap-2">
             <Icon name="info" className="text-[16px] text-amber-400 flex-shrink-0" />
             <span>
-              Tombol Tambah Akun aktif setelah <code className="font-mono">SUPABASE_SECRET_KEY</code> diisi di <code className="font-mono">.env.local</code> /
+              Tombol Tambah, Ubah, dan Hapus akun aktif setelah <code className="font-mono">SUPABASE_SECRET_KEY</code> diisi di <code className="font-mono">.env.local</code> /
               Environment Variables Vercel (Supabase → Project Settings → API Keys → Secret keys), lalu server di-restart / redeploy.
             </span>
           </div>
@@ -255,6 +285,31 @@ export function AccessManager({
                       <div className="text-[10px] text-gray-500 mt-0.5">
                         Login terakhir: {u?.lastSignInLabel ?? "belum pernah"} · dibuat {u?.createdLabel}
                       </div>
+                      {adminApiReady && (
+                        <div className="flex items-center gap-1.5 mt-2">
+                          <button
+                            type="button"
+                            onClick={() => openEdit(r.id)}
+                            disabled={accountBusy}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-line-strong text-[10px] text-gray-300 hover:text-brand-ink hover:border-cyan-500/50 transition disabled:opacity-50"
+                          >
+                            <Icon name="edit" className="text-[13px]" />
+                            Ubah login / sandi
+                          </button>
+                          {!isMe && (
+                            <button
+                              type="button"
+                              onClick={() => removeAccount(r.id)}
+                              disabled={accountBusy || staged.isChanged(r.id)}
+                              title={staged.isChanged(r.id) ? "Terapkan atau reset perubahan role akun ini dulu" : undefined}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-rose-500/30 text-[10px] text-rose-300 hover:bg-rose-500/10 transition disabled:opacity-50"
+                            >
+                              <Icon name="delete" className="text-[13px]" />
+                              Hapus
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </td>
                     <td className="py-3 px-4">
                       {isMe ? (
@@ -367,6 +422,54 @@ export function AccessManager({
           </table>
         </div>
       </section>
+
+      <Modal
+        open={edit !== null}
+        title="Ubah Akun"
+        description={edit ? `Akun ${edit.current}. Kosongkan kata sandi bila tidak ingin mengubahnya.` : undefined}
+        onClose={() => setEdit(null)}
+        onSubmit={saveEdit}
+        submitLabel={accountBusy ? "Menyimpan..." : "Simpan Perubahan"}
+        error={editError}
+      >
+        {edit && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <Field label="Username / Email" hint={USERNAME_HINT}>
+              <input
+                type="text"
+                className={`${inputCls} font-mono`}
+                value={edit.login}
+                onChange={(e) => setEdit({ ...edit, login: e.target.value })}
+                autoCapitalize="none"
+                spellCheck={false}
+                autoComplete="off"
+                required
+              />
+            </Field>
+            <Field label="Kata Sandi Baru" hint={`Opsional. Minimal ${PASSWORD_MIN} karakter, bebas huruf / angka / simbol.`}>
+              <span className="relative block">
+                <input
+                  type={showEditPassword ? "text" : "password"}
+                  className={`${inputCls} pr-9`}
+                  value={edit.password}
+                  onChange={(e) => setEdit({ ...edit, password: e.target.value })}
+                  autoComplete="new-password"
+                  placeholder="tidak diubah"
+                  minLength={edit.password ? PASSWORD_MIN : undefined}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowEditPassword((v) => !v)}
+                  aria-label={showEditPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-gray-400 hover:text-brand-ink"
+                >
+                  <Icon name={showEditPassword ? "visibility_off" : "visibility"} className="text-[17px]" />
+                </button>
+              </span>
+            </Field>
+          </div>
+        )}
+      </Modal>
 
       <Modal
         open={account !== null}
