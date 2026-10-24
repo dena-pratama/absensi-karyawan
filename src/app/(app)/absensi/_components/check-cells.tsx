@@ -19,9 +19,18 @@ export function CheckTimeCell({ point }: { point: CheckPoint | null }) {
   if (!point) return <span className="text-gray-600">-</span>;
   return (
     <div className="flex flex-col leading-tight">
-      <span className="font-mono font-semibold text-gray-200 whitespace-nowrap">{point.time.replace(" WIB", "")}</span>
+      <span className="font-mono font-semibold text-gray-200 whitespace-nowrap">
+        {point.time.replace(" WIB", "")}
+        {point.wfa && (
+          <span className="ml-1 align-middle text-[9px] px-1.5 py-px rounded bg-sky-500/15 text-sky-300 border border-sky-500/30 font-sans" title="Work From Anywhere">
+            WFA
+          </span>
+        )}
+      </span>
       <span className="text-[10px] text-gray-500 whitespace-nowrap" title="Jarak ke titik outlet saat absen">
-        {point.branchCode ? (
+        {point.wfa ? (
+          <>{meters(point.distanceM)} dari cabang utama</>
+        ) : point.branchCode ? (
           <>
             di <span className="font-semibold text-purple-300">{point.branchCode}</span> · {meters(point.distanceM)}
           </>
@@ -108,6 +117,12 @@ function PhotoDialog({ view, onClose }: { view: PhotoView; onClose: () => void }
           <img src={point.photoUrl} alt={`Selfie ${KIND_LABEL[view.kind]} ${view.name}`} className="w-full max-h-[60vh] object-contain bg-black" />
         )}
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 px-4 py-3 text-[11px]">
+          {point.wfa && (
+            <>
+              <dt className="text-gray-500">Mode</dt>
+              <dd className="text-sky-300 font-semibold text-right">WFA (di luar outlet)</dd>
+            </>
+          )}
           {point.branchCode && (
             <>
               <dt className="text-gray-500">Outlet</dt>

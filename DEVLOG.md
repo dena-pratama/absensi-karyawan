@@ -5,6 +5,21 @@ Format: entri terbaru di paling atas.
 
 ---
 
+## 2026-10-24 — WFA untuk SPV & Office, Office deteksi outlet otomatis
+
+Keputusan user: SPV & Office bisa WFA; koordinat tetap tercatat; absensi tampil di cabang utama. Office tanpa pilihan
+cabang, langsung deteksi outlet terdekat.
+- Migrasi `20261030000000_wfa.sql` (sudah dijalankan user, berhasil): kolom `check_in_wfa` / `check_out_wfa` (dikunci trigger),
+  `attendance_check(..., p_branch, p_wfa)` 8 parameter (versi 7 parameter dihapus):
+  - WFA: tanpa batas area, baris absensi di cabang penempatan, jarak = jarak ke titik cabang utama; karyawan ditolak;
+  - office: `p_branch` diabaikan, outlet terdekat dipilih otomatis;
+  - di luar area tanpa WFA: pesan menyarankan mode WFA (SPV/Office).
+  - Diuji di PGlite (7 skenario WFA + skenario SPV/karyawan/office lama tetap sama).
+- Web Absensi Harian: badge "WFA" di jam check in/out, jarak "dari cabang utama", baris Mode di penampil foto.
+- Brief ke sesi mobile untuk toggle WFA & Office tanpa pemilih outlet.
+
+---
+
 ## 2026-10-24 — Peringatan AI kena limit
 
 Permintaan user: alert / pengingat saat model AI kena limit, dan saran ganti model / platform.
