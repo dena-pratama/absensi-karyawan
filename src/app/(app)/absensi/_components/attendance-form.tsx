@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { openDatePicker } from "@/components/date-input";
 import { Toast } from "@/components/toast";
 import { Icon } from "@/components/icon";
+import { confirmDialog } from "@/components/confirm-dialog";
 import { saveAttendance, type AttendanceChange } from "@/lib/actions/attendance";
 import { initials, shiftDay } from "@/lib/format";
 import type { DayBackup } from "@/lib/data/backup";
@@ -150,9 +151,9 @@ export function AttendanceForm({
   const setEntry = (id: string, patch: Partial<Entry>) =>
     setEntries((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));
 
-  const changeDate = (value: string) => {
+  const changeDate = async (value: string) => {
     if (!value || value === date) return;
-    if (dirty && !window.confirm("Perubahan belum disimpan. Pindah tanggal dan buang perubahan?")) return;
+    if (dirty && !(await confirmDialog({ title: "Buang perubahan?", message: "Perubahan absensi belum disimpan. Pindah tanggal dan buang perubahan?", confirmLabel: "Pindah tanggal", tone: "warning" }))) return;
     startNavigating(() => router.push(`/absensi?tanggal=${value}`));
   };
 
@@ -476,7 +477,7 @@ export function AttendanceForm({
 
       <PhotoViewer view={photo} onClose={closePhoto} />
 
-      <Toast toast={toast} />
+      <Toast toast={toast} duration={3200} />
     </section>
   );
 }

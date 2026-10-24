@@ -58,3 +58,6 @@ export const KASBON_STATUS_LABEL: Record<KasbonStatus, string> = {
   lunas: "Lunas",
   dibatalkan: "Dibatalkan",
 };
+
+/** Kalimat yang harus diketik untuk konfirmasi Reset Data (sama dengan fungsi admin_reset_data). */
+export const RESET_PHRASE = "RESET DATABASE";

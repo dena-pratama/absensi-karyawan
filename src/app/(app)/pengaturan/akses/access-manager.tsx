@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/icon";
+import { confirmDialog } from "@/components/confirm-dialog";
 import { createUserAccount, deleteUserAccount, saveUserAccess, updateUserAccount, type NewAccount } from "@/lib/actions/access";
 import type { UserAccess } from "@/lib/data/access";
 import { APP_ROLE_LABEL, APP_ROLES, attendsSelf, holdsBranches, type AppRole } from "@/lib/labels";
@@ -135,9 +136,15 @@ export function AccessManager({
       setToast({ text: res.message, error: false });
       router.refresh();
     });
-  const removeAccount = (userId: string) => {
+  const removeAccount = async (userId: string) => {
     const login = userById.get(userId)?.email ?? "akun ini";
-    if (!window.confirm(`Hapus akun ${login} secara permanen? Akun tidak bisa login lagi. Data karyawan & absensinya tetap ada.`)) return;
+    const ok = await confirmDialog({
+      title: `Hapus akun ${login}?`,
+      message: "Akun dihapus permanen dan tidak bisa login lagi. Data karyawan & absensinya tetap ada.",
+      confirmLabel: "Hapus akun",
+      tone: "danger",
+    });
+    if (!ok) return;
     startAccountBusy(async () => {
       const res = await deleteUserAccount(userId);
       setToast(res.ok ? { text: `Akun ${login} dihapus.`, error: false } : { text: res.error, error: true });

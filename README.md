@@ -189,6 +189,10 @@ Jalankan file berikut **berurutan** di **Supabase → SQL Editor**:
 | 12 | `supabase/migrations/20261025000000_kasbon.sql` | Kasbon: gaji pokok per jabatan / karyawan, pembagi & cut-off gajian, pengajuan → persetujuan → pencairan dengan bukti foto (bucket `kasbon-proof`). |
 | 13 | `supabase/migrations/20261026000000_ai_more_providers.sql` | Konektor AI: provider tambahan (DeepSeek, OpenRouter, Groq, Mistral, xAI, Ollama, OpenAI-compatible) + kolom `base_url`. |
 | 14 | `supabase/migrations/20261027000000_office_role.sql` | Role **Office**: sama dengan SPV (pegang cabang), tapi boleh absen sendiri di cabang mana pun; fungsi `my_checkin_branches()`. |
+| 15 | `supabase/migrations/20261028000000_ai_insight.sql` | Cache AI Insight dashboard (1x per hari per cabang). |
+| 16 | `supabase/migrations/20261029000000_ai_limit_alert.sql` | Penanda konektor AI kena limit. |
+| 17 | `supabase/migrations/20261030000000_wfa.sql` | WFA untuk SPV & Office; Office deteksi outlet otomatis. |
+| 18 | `supabase/migrations/20261031000000_reset_data.sql` | Fungsi `admin_reset_data()` untuk Pengaturan > Reset Data. |
 | — | `supabase/seed_demo.sql` | *Opsional* — data demo (cabang & karyawan fiktif). |
 
 > **Instalasi baru:** jalankan migrasi #6 **setelah** membuat akun admin pertama (langkah 2), atau jalankan ulang file itu setelahnya. Selama tabel `app_user` masih kosong, akun yang sudah ada otomatis dijadikan admin.

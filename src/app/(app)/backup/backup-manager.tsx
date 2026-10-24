@@ -4,6 +4,7 @@ import { useCallback, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { DateInput } from "@/components/date-input";
 import { Icon } from "@/components/icon";
+import { confirmDialog } from "@/components/confirm-dialog";
 import { deleteBackup, saveBackup, type BackupInput } from "@/lib/actions/backup";
 import type { BackupRow } from "@/lib/data/backup";
 import { formatDateLong } from "@/lib/format";
@@ -85,8 +86,14 @@ export function BackupManager({
       router.refresh();
     });
 
-  const remove = (b: BackupRow) => {
-    if (!window.confirm(`Hapus penugasan backup ${b.name} ke ${b.toCode} (${rangeLabel(b.dateFrom, b.dateTo)})?`)) return;
+  const remove = async (b: BackupRow) => {
+    const ok = await confirmDialog({
+      title: "Hapus penugasan backup?",
+      message: `${b.name} ke ${b.toCode} (${rangeLabel(b.dateFrom, b.dateTo)}).`,
+      confirmLabel: "Hapus",
+      tone: "danger",
+    });
+    if (!ok) return;
     startBusy(async () => {
       const res = await deleteBackup(b.id);
       setToast(res.ok ? { text: "Penugasan backup dihapus.", error: false } : { text: res.error, error: true });

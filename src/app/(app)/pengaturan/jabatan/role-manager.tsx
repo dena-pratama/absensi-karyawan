@@ -3,6 +3,7 @@
 import { useCallback, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/icon";
+import { confirmDialog } from "@/components/confirm-dialog";
 import { applyRoleChanges, deleteRole } from "@/lib/actions/settings";
 import type { RoleSetting } from "@/lib/data/settings";
 import { StatCard } from "../_components/settings-skeleton";
@@ -28,9 +29,10 @@ export function RoleManager({
   const clearToast = useCallback(() => setToast(null), []);
 
   /** Baris baru (belum diterapkan) cukup dibuang; data tersimpan dihapus permanen di database. */
-  const removeRow = (id: string, label: string) => {
+  const removeRow = async (id: string, label: string) => {
     if (staged.isNew(id)) return staged.remove(id);
-    if (!window.confirm(`Hapus jabatan ${label} secara permanen?`)) return;
+    const ok = await confirmDialog({ title: `Hapus jabatan ${label}?`, message: "Data dihapus permanen dari database.", confirmLabel: "Hapus", tone: "danger" });
+    if (!ok) return;
     startSaving(async () => {
       const res = await deleteRole(id);
       setToast(res.ok ? { text: `Jabatan ${label} dihapus.`, error: false } : { text: res.error, error: true });

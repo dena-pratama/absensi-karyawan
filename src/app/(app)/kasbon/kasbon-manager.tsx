@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, m } from "motion/react";
 import { Icon } from "@/components/icon";
+import { confirmDialog } from "@/components/confirm-dialog";
 import { POP } from "@/components/motion";
 import { PopupLayer } from "@/components/popup-overlay";
 import { cancelKasbon, decideKasbon, disburseKasbon, requestKasbon, settleKasbon } from "@/lib/actions/kasbon";
@@ -100,12 +101,14 @@ function KasbonView({
       if (res.ok) router.refresh();
     });
 
-  const cancel = (k: KasbonItem) => {
-    if (!window.confirm(`Batalkan pengajuan kasbon ${formatRupiah(k.amount)}?`)) return;
+  const cancel = async (k: KasbonItem) => {
+    const ok = await confirmDialog({ title: "Batalkan pengajuan kasbon?", message: `Pengajuan ${formatRupiah(k.amount)} akan dibatalkan.`, confirmLabel: "Batalkan pengajuan", tone: "warning" });
+    if (!ok) return;
     run(() => cancelKasbon(k.id), "Pengajuan kasbon dibatalkan.");
   };
-  const settle = (k: KasbonItem) => {
-    if (!window.confirm(`Tandai kasbon ${k.name} ${formatRupiah(k.amount)} sudah lunas?`)) return;
+  const settle = async (k: KasbonItem) => {
+    const ok = await confirmDialog({ title: "Tandai kasbon lunas?", message: `${k.name} · ${formatRupiah(k.amount)}`, confirmLabel: "Tandai lunas" });
+    if (!ok) return;
     run(() => settleKasbon(k.id), "Kasbon ditandai lunas.");
   };
 

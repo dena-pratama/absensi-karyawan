@@ -5,6 +5,38 @@ Format: entri terbaru di paling atas.
 
 ---
 
+## 2026-10-24 — Notifikasi & konfirmasi beranimasi
+
+Masukan user: notifikasi simpan / edit / hapus terlalu basic, minta pop up beranimasi.
+- `components/toast.tsx` didesain ulang (API tetap `{ text, error }`, semua pemanggil otomatis ikut): kartu masuk dengan
+  spring, ikon dalam lingkaran berdenyut, jenis ditebak dari pesan: simpan (centang digambar), ubah (pensil bergoyang),
+  hapus (tong sampah bergetar, merah), gagal (kuning); judul per jenis + garis waktu menyusut sampai hilang.
+- `components/confirm-dialog.tsx`: `confirmDialog({ title, message, confirmLabel, tone })` → Promise<boolean>, pop up
+  beranimasi (ikon memantul + cincin berdenyut, tombol Batal / aksi), Esc / klik latar = batal. `<ConfirmHost />` dipasang
+  di layout akar. Semua `window.confirm` diganti (hapus karyawan/cabang/jabatan/akun/backup/konektor AI, kasbon batal &
+  lunas, pindah tanggal absensi, pindah tab pengaturan dengan draf).
+- Dicek di browser lewat halaman uji sementara (sudah dihapus): 4 jenis notifikasi & dialog hapus tampil benar.
+  `tsc`, `eslint`, `next build` lolos.
+
+---
+
+## 2026-10-24 — Reset Data (transaksi / total)
+
+Keputusan user: halaman Reset Data dengan 2 pilihan, wajib unduh backup dulu, konfirmasi 2x, sesi HP logout semua,
+akun admin yang menjalankan tetap.
+- Migrasi `20261031000000_reset_data.sql` (**belum dijalankan user**): `admin_reset_data(mode, 'RESET DATABASE')`, khusus
+  admin, satu transaksi. transaksi = absensi, kasbon, backup, AI insight, log; total = + role akun lain, karyawan,
+  penempatan, cabang, cluster, jabatan, gaji (pengaturan gajian default). Akun pemanggil tetap admin. Menghapus
+  `auth.sessions` selain pemanggil (dibungkus, reset tetap jalan bila tidak diizinkan). Diuji di PGlite.
+- `/pengaturan/reset/backup`: unduh JSON semua tabel + daftar akun (tanpa API key AI, tanpa foto), lewat secret key.
+- `actions/reset.ts` `resetData`: panggil fungsi DB, kosongkan bucket `attendance-selfie` & `kasbon-proof`, reset total
+  menghapus akun Auth lain via Admin API.
+- Tab Pengaturan "Reset Data": peringatan, langkah 1 unduh backup (wajib), langkah 2 pilih jenis, konfirmasi 1 (daftar
+  data + centang sudah backup), konfirmasi 2 (ketik RESET DATABASE), ringkasan hasil.
+- README: daftar migrasi #15-#18. `tsc`, `eslint`, `next build` lolos. Belum dijalankan sungguhan.
+
+---
+
 ## 2026-10-24 — Hapus data di Karyawan, Cabang, Jabatan (CRUD lengkap)
 
 Masukan user: Manajemen Karyawan, Manajemen Cabang, dan Master Jabatan belum ada CRUD (sebelumnya tambah, lihat, ubah,

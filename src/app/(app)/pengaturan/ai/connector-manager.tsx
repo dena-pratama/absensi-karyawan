@@ -3,6 +3,7 @@
 import { useCallback, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/icon";
+import { confirmDialog } from "@/components/confirm-dialog";
 import { deactivateConnector, deleteConnector, saveConnector, testConnector } from "@/lib/actions/ai-connector";
 import { AI_PROVIDERS, needsBaseUrl, type AiProvider, type ConnectorInfo } from "@/lib/ai/providers";
 import { Field, inputCls, Toast, useToastTimer } from "../_components/ui";
@@ -309,8 +310,14 @@ export function ConnectorManager({
             {saved && (
               <button
                 type="button"
-                onClick={() => {
-                  if (window.confirm(`Hapus konektor ${AI_PROVIDERS[selected].label} beserta API key-nya?`)) run(() => deleteConnector(selected));
+                onClick={async () => {
+                  const ok = await confirmDialog({
+                    title: `Hapus konektor ${AI_PROVIDERS[selected].label}?`,
+                    message: "Konektor beserta API key-nya dihapus dari server.",
+                    confirmLabel: "Hapus",
+                    tone: "danger",
+                  });
+                  if (ok) run(() => deleteConnector(selected));
                 }}
                 disabled={busy}
                 className="ml-auto flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-rose-500/40 text-rose-300 hover:bg-rose-950/30 transition disabled:opacity-50"

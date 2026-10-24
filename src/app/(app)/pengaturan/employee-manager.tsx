@@ -5,6 +5,7 @@ import { useCallback, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { DateInput } from "@/components/date-input";
 import { Icon } from "@/components/icon";
+import { confirmDialog } from "@/components/confirm-dialog";
 import { applyEmployeeChanges, deleteEmployee } from "@/lib/actions/settings";
 import type { BranchSetting, EmployeeSetting, RoleSetting } from "@/lib/data/settings";
 import { formatDateLong, initials } from "@/lib/format";
@@ -87,9 +88,10 @@ export function EmployeeManager({
   const clearToast = useCallback(() => setToast(null), []);
 
   /** Baris baru (belum diterapkan) cukup dibuang; data tersimpan dihapus permanen di database. */
-  const removeRow = (id: string, label: string) => {
+  const removeRow = async (id: string, label: string) => {
     if (staged.isNew(id)) return staged.remove(id);
-    if (!window.confirm(`Hapus karyawan ${label} secara permanen?`)) return;
+    const ok = await confirmDialog({ title: `Hapus karyawan ${label}?`, message: "Data dihapus permanen dari database.", confirmLabel: "Hapus", tone: "danger" });
+    if (!ok) return;
     startSaving(async () => {
       const res = await deleteEmployee(id);
       setToast(res.ok ? { text: `Karyawan ${label} dihapus.`, error: false } : { text: res.error, error: true });
