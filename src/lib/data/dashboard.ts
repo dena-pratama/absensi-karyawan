@@ -103,3 +103,94 @@ export async function getDashboardStats(branches: BranchSummary[], date: string)
     };
   });
 }
+
+export type RangeSummary = {
+  from: string;
+  to: string;
+  days: number;
+  staff: number;
+  /** Staf × hari = jumlah absensi yang seharusnya terisi. */
+  expected: number;
+  hadir: number;
+  sakit: number;
+  tidakHadir: number;
+  belum: number;
+  percent: number | null; // hadir / expected
+  filled: number | null; // terisi / expected
+  /** Persentase hadir periode sebelumnya dengan panjang sama (pembanding). */
+  prevPercent: number | null;
+  branchCount: number;
+  completeBranches: number;
+  lowest: { code: string; percent: number } | null;
+};
+
+const PAGE = 1000;
+const dayDiff = (a: string, b: string) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);
+const addDays = (ymd: string, n: number) => {
+  const d = new Date(`${ymd}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+
+/**
+ * Ringkasan kehadiran untuk rentang tanggal & cabang tertentu (`stats` = cabang dalam lingkup,
+ * jumlah staf diambil dari tanggal akhir). Pembanding = periode sebelumnya yang sama panjang.
+ */
+export async function getRangeSummary(stats: BranchStats[], from: string, to: string): Promise<RangeSummary> {
+  const supabase = await createClient();
+  const days = dayDiff(from, to) + 1;
+  const prevFrom = addDays(from, -days);
+  const ids = stats.map((s) => s.id);
+
+  type Row = { branch_id: string; status: AttendanceStatus; attendance_date: string };
+  const rows: Row[] = [];
+  if (ids.length) {
+    for (let offset = 0; ; offset += PAGE) {
+      const { data, error } = await supabase
+        .from("attendance_daily")
+        .select("branch_id, status, attendance_date")
+        .in("branch_id", ids)
+        .gte("attendance_date", prevFrom)
+        .lte("attendance_date", to)
+        .order("id")
+        .range(offset, offset + PAGE - 1);
+      if (error) throw new Error(`Gagal memuat ringkasan absensi: ${error.message}`);
+      rows.push(...((data ?? []) as Row[]));
+      if (!data || data.length < PAGE) break;
+    }
+  }
+
+  const current = rows.filter((r) => r.attendance_date >= from);
+  const previous = rows.filter((r) => r.attendance_date < from);
+  const staff = stats.reduce((n, s) => n + s.total, 0);
+  const expected = staff * days;
+  const count = (list: Row[], s: AttendanceStatus) => list.filter((r) => r.status === s).length;
+  const hadir = count(current, "hadir");
+  const pct = (n: number, total: number) => (total ? Math.round((n / total) * 100) : null);
+
+  const perBranch = stats
+    .filter((s) => s.total > 0)
+    .map((s) => {
+      const mine = current.filter((r) => r.branch_id === s.id);
+      return { code: s.code, recorded: mine.length, expected: s.total * days, percent: pct(count(mine, "hadir"), s.total * days) ?? 0 };
+    });
+  const lowest = [...perBranch].sort((a, b) => a.percent - b.percent)[0];
+
+  return {
+    from,
+    to,
+    days,
+    staff,
+    expected,
+    hadir,
+    sakit: count(current, "sakit"),
+    tidakHadir: count(current, "tidak_hadir"),
+    belum: Math.max(0, expected - current.length),
+    percent: pct(hadir, expected),
+    filled: pct(Math.min(current.length, expected), expected),
+    prevPercent: pct(count(previous, "hadir"), expected),
+    branchCount: perBranch.length,
+    completeBranches: perBranch.filter((b) => b.recorded >= b.expected).length,
+    lowest: lowest ? { code: lowest.code, percent: lowest.percent } : null,
+  };
+}

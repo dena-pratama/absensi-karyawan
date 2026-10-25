@@ -5,6 +5,87 @@ Format: entri terbaru di paling atas.
 
 ---
 
+## 2026-10-25 — Notifikasi: tampilkan lebih banyak + halaman Notifikasi
+
+Permintaan user: "show more" di panel notifikasi dan halaman detail notifikasi di bawah menu Pengaturan.
+- Panel lonceng: 8 item dulu, tombol "Tampilkan lebih banyak (n)" (+8), tautan "Lihat semua" ke `/notifikasi`.
+- `getNotifications({ days, limit })` (maks. 31 hari / 500 item; default lonceng tetap 3 hari / 40).
+- Halaman `/notifikasi` (admin & Office; SPV / karyawan diarahkan ke dashboard): kartu jumlah per jenis (klik = filter),
+  cari nama / cabang, rentang 3 / 7 / 14 / 30 hari, daftar dikelompokkan per hari dengan jam, "Tampilkan lebih banyak".
+  Admin: item bisa diklik ke halaman terkait; Office: lihat saja.
+- Sidebar: ikon Notifikasi di bawah Pengaturan (admin & Office). Proxy mengizinkan `/notifikasi` untuk akun hanya-lihat.
+- `tsc`, `eslint`, `next build` lolos. Belum dicek dengan data sungguhan.
+
+---
+
+## 2026-10-25 — Lonceng notifikasi aktivitas (admin & Office)
+
+Permintaan user: ikon notifikasi di sebelah tombol light mode untuk aktivitas (check in/out, pengajuan, dll), hanya web;
+admin klik langsung ke halaman, Office hanya melihat.
+- `lib/actions/notifications.ts` `getNotifications()`: 3 hari terakhir, maks. 40 terbaru dari check in, check out (+ WFA),
+  pengajuan kasbon, penugasan backup baru. Dibaca lewat secret key setelah cek role (Office tidak bisa membaca kasbon orang
+  lain lewat RLS). `canOpen` = admin.
+- `components/shell/notification-bell.tsx`: lonceng + badge merah jumlah baru (sejak panel terakhir dibuka, disimpan di
+  localStorage), panel di bawah lonceng (rata kanan) dengan ikon per jenis, waktu relatif, penanda baru, tombol muat
+  ulang; diperbarui tiap 60 detik saat tab terlihat. Admin: item = link ke Absensi Harian (tanggal itu), Kasbon, Backup.
+  Office: item tidak bisa diklik ("mode lihat saja").
+- `useAnchored` mendapat opsi `align: "end"`. Topbar menampilkan lonceng hanya untuk admin & Office.
+- `tsc`, `eslint`, `next build` lolos. Belum dicek dengan data sungguhan (perlu login).
+
+---
+
+## 2026-10-25 — Filter dashboard tidak terpecah
+
+Masukan user (screenshot): saat rentang dipilih, tombol tanggal turun ke bawah tombol Global.
+- Tombol Global & rentang tanggal selalu satu baris (`flex-nowrap`, `whitespace-nowrap`, tinggi sama 32px).
+- Kartu ringkasan memakai container query: kartu lebar (≥ 36rem) judul & filter sebaris; kartu sempit filter pindah
+  ke bawah judul sebagai satu baris (judul tidak lagi terjepit).
+- Dicek di browser pada lebar kartu 740 / 560 / 420 px (halaman uji sudah dihapus).
+
+---
+
+## 2026-10-25 — Notifikasi di tengah (gaya dialog) + filter rentang tanggal dashboard
+
+Masukan user: notifikasi dibuat clean, di tengah, mirip dialog hapus (tidak berlebihan); filter dashboard interaktif dengan
+rentang tanggal.
+- `components/toast.tsx`: kartu di tengah layar seperti dialog konfirmasi (lingkaran ikon, judul, pesan), tanpa garis
+  waktu / denyut; tidak menghalangi klik halaman, klik kartu untuk menutup. API lama tetap.
+- `components/date-range-picker.tsx`: popover (portal) dengan preset (Hari ini, Kemarin, 7 / 30 hari terakhir, Bulan ini,
+  Bulan lalu) + kalender: klik tanggal awal lalu akhir, sorotan mengikuti kursor, tanggal masa depan nonaktif, maks. 93 hari,
+  Batal / Terapkan.
+- Dashboard: URL `/?dari=&sampai=&lingkup=global` (`?tanggal=` lama tetap dibaca). `getRangeSummary()` di
+  `lib/data/dashboard.ts`: rekap rentang (staf × hari), pembanding periode sebelumnya yang sama panjang, kelengkapan,
+  cabang terendah. Ringkasan berjudul "Ringkasan N Hari" untuk rentang; bagian dashboard lain memakai tanggal akhir.
+- Dicek di browser lewat halaman uji (sudah dihapus). `tsc`, `eslint`, `next build` lolos.
+
+---
+
+## 2026-10-25 — Dashboard: filter tanggal & tombol Global
+
+Permintaan user (screenshot): filter tanggal di kartu ringkasan, ringkasan mengacu cabang yang dipilih di topbar, dan
+tombol Global (gabungan) yang bila diklik lagi kembali ke cabang terpilih.
+- `_components/dashboard-controls.tsx`: tombol `[kode cabang] ⇄` / `[Global] ⇄` + pemilih tanggal (maks. hari ini) +
+  "Hari ini". Disimpan di URL `/?tanggal=YYYY-MM-DD&lingkup=global`; cabang tetap dari cookie topbar.
+- Dashboard membaca `searchParams`: seluruh data dashboard memakai tanggal terpilih (tidak boleh masa depan). Ringkasan
+  default = cabang aktif; Global = semua cabang. Pembanding = hari sebelumnya, backup per cabang (asal / tujuan), kasbon
+  menunggu per karyawan cabang (admin). Label "Hari Ini" berubah jadi tanggal bila bukan hari ini. AI Insight tetap
+  insight hari ini untuk cabang aktif.
+- Dicek di browser dengan data contoh (halaman uji sudah dihapus). `tsc`, `eslint`, `next build` lolos.
+
+---
+
+## 2026-10-25 — Dashboard: Ringkasan Hari Ini + AI Insight berdampingan
+
+Permintaan user (screenshot): dashboard admin & Office, kiri = ringkasan detail (persentase dll), kanan = AI Insight.
+- `_components/today-summary.tsx`: cincin persentase kehadiran semua cabang (+ selisih poin vs kemarin), bar komposisi
+  Hadir / Sakit / Tidak Hadir / Belum Diabsen dengan jumlah & persen, dan 4 indikator: pengisian absensi (cabang lengkap),
+  cabang dengan kehadiran terendah, backup hari ini, kasbon menunggu (admin; Office melihat jumlah staf aktif).
+- `page.tsx`: grid 7/5 kolom (xl), di bawahnya bertumpuk di layar kecil. Data tambahan: statistik kemarin, backup hari
+  ini, jumlah kasbon "diajukan". Kartu AI Insight dibuat setinggi ringkasan.
+- Dicek di browser lewat halaman uji sementara (sudah dihapus). `tsc`, `eslint`, `next build` lolos.
+
+---
+
 ## 2026-10-24 — Notifikasi & konfirmasi beranimasi
 
 Masukan user: notifikasi simpan / edit / hapus terlalu basic, minta pop up beranimasi.

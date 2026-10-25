@@ -1,5 +1,7 @@
 import { getShellData } from "@/lib/data/shell";
 import { BranchSwitcher } from "./branch-switcher";
+import { getMyAccess } from "@/lib/data/access";
+import { NotificationBell } from "./notification-bell";
 import { ThemeToggle } from "./theme-toggle";
 import { UserMenu } from "./user-menu";
 
@@ -38,7 +40,7 @@ export function TopbarFallback({ className = "" }: { className?: string }) {
 }
 
 export async function Topbar({ className = "" }: { className?: string }) {
-  const { user, branches, activeBranch } = await getShellData();
+  const [{ user, branches, activeBranch }, { role }] = await Promise.all([getShellData(), getMyAccess()]);
 
   return (
     <header className={`${headerClass} ${className}`}>
@@ -68,6 +70,8 @@ export async function Topbar({ className = "" }: { className?: string }) {
           />
         </form>
 
+        {/* Notifikasi aktivitas: admin (bisa klik) & Office (lihat saja) */}
+        {(role === "admin" || role === "office") && <NotificationBell />}
         <ThemeToggle />
 
         {/* Profil admin */}

@@ -3,12 +3,16 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { CountUp, GrowBar } from "@/components/dashboard-motion";
 import { PageBody, PageHeader, PageTabs } from "@/components/shell/page-layout";
-import { getDashboardStats, type BranchStats, type StaffToday } from "@/lib/data/dashboard";
+import { getDashboardStats, getRangeSummary, type BranchStats, type StaffToday } from "@/lib/data/dashboard";
 import { getShellData } from "@/lib/data/shell";
-import { formatDateLong, formatTimeWIB, initials, todayWIB } from "@/lib/format";
+import { formatDateLong, formatTimeWIB, initials, parseDateParam, shiftDay, todayWIB } from "@/lib/format";
 import { ATTENDANCE_LABEL, BRANCH_TYPE_LABEL } from "@/lib/labels";
 import { getMyAccess } from "@/lib/data/access";
+import { getBackups } from "@/lib/data/backup";
+import { createClient } from "@/lib/supabase/server";
 import { AiInsightCard } from "./_components/ai-insight-card";
+import { DashboardControls } from "./_components/dashboard-controls";
+import { TodaySummary } from "./_components/today-summary";
 import { BranchCarousel, type BranchCard } from "./_components/branch-carousel";
 
 export const metadata: Metadata = { title: "Dashboard" };
@@ -18,7 +22,7 @@ const TABS = [
   { label: "Absensi Operasional", href: "/absensi" },
 ];
 
-export default function DashboardPage() {
+export default function DashboardPage({ searchParams }: PageProps<"/">) {
   return (
     <>
       <PageHeader
@@ -33,11 +37,39 @@ export default function DashboardPage() {
       />
       <PageBody>
         <Suspense fallback={<DashboardSkeleton />}>
-          <DashboardContent />
+          <DashboardContent searchParams={searchParams} />
         </Suspense>
       </PageBody>
     </>
   );
+}
+
+/**
+ * Data ringkasan untuk rentang & lingkup terpilih: rekap kehadiran (+ periode sebelumnya),
+ * backup yang aktif di rentang itu, kasbon menunggu (khusus admin; lingkup cabang = karyawan cabang itu).
+ */
+async function getSummaryData(
+  scoped: BranchStats[],
+  from: string,
+  to: string,
+  isAdmin: boolean,
+  scope: { branchId: string; employeeIds: string[] } | null, // null = global
+) {
+  const supabase = await createClient();
+  let kasbonQuery = supabase.from("kasbon").select("id", { count: "exact", head: true }).eq("status", "diajukan");
+  if (scope) kasbonQuery = kasbonQuery.in("employee_id", scope.employeeIds.length ? scope.employeeIds : ["00000000-0000-0000-0000-000000000000"]);
+  const [summary, { rows: backups }, kasbon] = await Promise.all([
+    getRangeSummary(scoped, from, to),
+    getBackups({ from, to }),
+    isAdmin ? kasbonQuery : null,
+  ]);
+  return {
+    summary,
+    extras: {
+      backups: (scope ? backups.filter((b) => b.toBranchId === scope.branchId || b.fromBranchId === scope.branchId) : backups).length,
+      kasbonPending: kasbon && !kasbon.error ? (kasbon.count ?? 0) : null,
+    },
+  };
 }
 
 async function ActiveBranchCode() {
@@ -45,11 +77,25 @@ async function ActiveBranchCode() {
   return activeBranch?.code ?? "Semua Cabang";
 }
 
-async function DashboardContent() {
-  const [{ branches, activeBranch }, { role }] = await Promise.all([getShellData(), getMyAccess()]);
-  const today = todayWIB();
+async function DashboardContent({ searchParams }: { searchParams: PageProps<"/">["searchParams"] }) {
+  const [{ branches, activeBranch }, { role }, params] = await Promise.all([getShellData(), getMyAccess(), searchParams]);
+  const now = todayWIB();
+  // Rentang (?dari=&sampai=, atau ?tanggal= lama) tidak boleh di masa depan; maks. 93 hari.
+  // Bagian dashboard lain (kartu cabang, persentase, absensi terkini) memakai tanggal akhir.
+  const param = (k: string) => (typeof params[k] === "string" ? (params[k] as string) : undefined);
+  const clamp = (d: string) => (d > now ? now : d);
+  const to = clamp(parseDateParam(param("sampai") ?? param("tanggal"), now));
+  let from = clamp(parseDateParam(param("dari") ?? param("tanggal"), to));
+  if (from > to) from = to;
+  if (shiftDay(from, 92) < to) from = shiftDay(to, -92);
+  const today = to;
+  const global = params.lingkup === "global";
   const stats = await getDashboardStats(branches, today);
   const showInsight = (role === "admin" || role === "office") && activeBranch;
+  const activeStats = stats.find((s) => s.id === activeBranch?.id) ?? null;
+  const scope = global || !activeStats ? null : { branchId: activeStats.id, employeeIds: activeStats.staff.map((x) => x.employeeId) };
+  const scoped = scope ? stats.filter((s) => s.id === scope.branchId) : stats;
+  const summary = showInsight ? await getSummaryData(scoped, from, to, role === "admin", scope) : null;
   const active = stats.find((s) => s.id === activeBranch?.id) ?? null;
   const aktifCount = stats.filter((s) => s.status === "aktif").length;
 
@@ -66,8 +112,23 @@ async function DashboardContent() {
 
   return (
     <>
-      {/* AI Insight cabang aktif (admin & Office), dimuat terpisah setelah halaman tampil */}
-      {showInsight && <AiInsightCard key={activeBranch.id} branchCode={activeBranch.code} />}
+      {/* Admin & Office: ringkasan semua cabang (kiri) + AI Insight cabang aktif (kanan, dimuat terpisah) */}
+      {showInsight && summary && (
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-stretch">
+          <div className="xl:col-span-7">
+            <TodaySummary
+              summary={summary.summary}
+              isToday={from === now && to === now}
+              scopeLabel={scope ? activeBranch.code : "Semua cabang"}
+              extras={summary.extras}
+              controls={<DashboardControls from={from} to={to} today={now} global={!scope} branchCode={activeBranch.code} />}
+            />
+          </div>
+          <div className="xl:col-span-5">
+            <AiInsightCard key={activeBranch.id} branchCode={activeBranch.code} />
+          </div>
+        </div>
+      )}
 
       {/* Data Cabang */}
       <section aria-labelledby="cabang-heading">
@@ -92,7 +153,7 @@ async function DashboardContent() {
       </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-7">
-        <AttendanceByBranch stats={stats} />
+        <AttendanceByBranch stats={stats} dateLabel={today === now ? "Hari Ini" : formatDateLong(today).replace(/^[^,]+, /, "")} />
         <RecentAttendance branch={active} today={today} />
       </div>
     </>
@@ -129,7 +190,7 @@ function globalBadge(percent: number | null) {
   return { label: "Kritis", cls: "bg-rose-500/10 text-rose-400 border-rose-500/30" };
 }
 
-function AttendanceByBranch({ stats }: { stats: BranchStats[] }) {
+function AttendanceByBranch({ stats, dateLabel }: { stats: BranchStats[]; dateLabel: string }) {
   const withStaff = stats.filter((s) => s.total > 0);
   const totalStaff = withStaff.reduce((n, s) => n + s.total, 0);
   const totalHadir = withStaff.reduce((n, s) => n + s.hadir, 0);
@@ -145,7 +206,7 @@ function AttendanceByBranch({ stats }: { stats: BranchStats[] }) {
         </h2>
         <div className="flex items-center gap-1.5 text-xs text-cyan-400 font-medium bg-panel px-2.5 py-1 rounded-lg border border-cyan-500/20 shadow-sm flex-shrink-0">
           <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_#00d2ff]" />
-          Hari Ini
+          {dateLabel}
         </div>
       </div>
 

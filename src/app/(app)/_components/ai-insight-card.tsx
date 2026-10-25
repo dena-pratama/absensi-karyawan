@@ -36,7 +36,7 @@ export function AiInsightCard({ branchCode }: { branchCode: string }) {
   const loading = busy || result === null;
 
   return (
-    <section aria-labelledby="ai-insight-title" className="relative overflow-hidden bg-panel border border-line rounded-2xl p-5 flex flex-col gap-3">
+    <section aria-labelledby="ai-insight-title" className="relative overflow-hidden bg-panel border border-line rounded-2xl p-5 flex flex-col gap-3 h-full">
       <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-cyan-500/10 pointer-events-none" />
       <div className="relative flex items-start justify-between gap-3">
         <div className="min-w-0">

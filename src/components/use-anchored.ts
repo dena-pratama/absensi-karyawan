@@ -10,7 +10,11 @@ const EDGE = 8;
  * `anchor` (atau di atasnya bila ruang di bawah tidak cukup). Jadi menu tidak terpotong oleh
  * kartu / tabel yang memakai overflow-hidden, dan tetap ikut bergerak saat halaman di-scroll.
  */
-export function useAnchored(open: boolean, anchor: RefObject<HTMLElement | null>, { height = 320, minWidth = 256 } = {}) {
+export function useAnchored(
+  open: boolean,
+  anchor: RefObject<HTMLElement | null>,
+  { height = 320, minWidth = 256, align = "start" }: { height?: number; minWidth?: number; align?: "start" | "end" } = {},
+) {
   const [pos, setPos] = useState<{ style: CSSProperties; up: boolean } | null>(null);
 
   useLayoutEffect(() => {
@@ -23,7 +27,8 @@ export function useAnchored(open: boolean, anchor: RefObject<HTMLElement | null>
       const vw = window.innerWidth;
       const vh = window.innerHeight;
       const width = Math.min(Math.max(r.width, minWidth), vw - EDGE * 2);
-      const left = Math.min(Math.max(EDGE, r.left), vw - width - EDGE);
+      // align end: tepi kanan menu sejajar tepi kanan pemicu (mis. tombol di pojok kanan topbar)
+      const left = Math.min(Math.max(EDGE, align === "end" ? r.right - width : r.left), vw - width - EDGE);
       const below = vh - r.bottom - EDGE;
       const above = r.top - EDGE;
       const up = below < height && above > below;
@@ -46,7 +51,7 @@ export function useAnchored(open: boolean, anchor: RefObject<HTMLElement | null>
       window.removeEventListener("scroll", schedule, true);
       window.removeEventListener("resize", schedule);
     };
-  }, [open, anchor, height, minWidth]);
+  }, [open, anchor, height, minWidth, align]);
 
   return open ? pos : null;
 }

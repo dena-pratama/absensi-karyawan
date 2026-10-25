@@ -7,7 +7,7 @@ import { getMyAccess } from "@/lib/data/access";
 /** Menu sidebar mengikuti role: SPV / karyawan hanya Dashboard & Absensi. */
 async function RoleSidebar({ className }: { className: string }) {
   const { role } = await getMyAccess();
-  return <Sidebar className={className} readOnly={role !== "admin"} />;
+  return <Sidebar className={className} readOnly={role !== "admin"} notif={role === "admin" || role === "office"} />;
 }
 
 /** Smart AI: admin (bisa mengusulkan perubahan data) dan Office (analisis saja). */
