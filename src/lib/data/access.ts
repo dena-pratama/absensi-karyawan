@@ -60,14 +60,15 @@ export async function isAdmin(): Promise<boolean> {
 }
 
 /**
- * Role akun yang sedang login. Sebelum migrasi RLS dijalankan semua akun
- * masih berakses penuh, jadi dianggap admin (rlsReady=false).
+ * Role akun yang sedang login. Bila fungsi role belum ada / gagal dibaca, akun dianggap
+ * TANPA akses (fail closed). Jangan pernah dianggap admin: banyak server action & route memakai
+ * secret key setelah cek ini.
  */
 export const getMyAccess = cache(async (): Promise<{ role: AppRole | null; rlsReady: boolean }> => {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("current_app_role");
   if (error) {
-    if (MISSING.has(error.code)) return { role: "admin", rlsReady: false };
+    if (MISSING.has(error.code)) return { role: null, rlsReady: false };
     throw new Error(`Gagal memuat hak akses: ${error.message}`);
   }
   return { role: (data as AppRole | null) ?? null, rlsReady: true };

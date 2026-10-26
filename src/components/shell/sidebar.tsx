@@ -17,6 +17,8 @@ const ICONS = {
     "M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z",
   backup:
     "M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4",
+  libur:
+    "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
   notif:
     "M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9",
   logout:
@@ -44,12 +46,15 @@ const MAIN_NAV: NavItem[] = [
   { href: "/", label: "Dashboard", paths: [ICONS.dashboard], match: (p) => p === "/" },
   { href: "/absensi", label: "Absensi & Karyawan", paths: [ICONS.absensi], match: (p) => p.startsWith("/absensi") },
   { href: "/backup", label: "Backup Karyawan", paths: [ICONS.backup], match: (p) => p.startsWith("/backup") },
+  { href: "/libur", label: "Libur Karyawan", paths: [ICONS.libur], match: (p) => p.startsWith("/libur") },
   { href: "/laporan", label: "Laporan", paths: [ICONS.laporan], match: (p) => p.startsWith("/laporan") },
   { href: "/kasbon", label: "Kasbon", paths: [ICONS.kasbon], match: (p) => p.startsWith("/kasbon") },
 ];
 
 /** Menu untuk akun hanya-lihat (sama dengan VIEWER_PATHS di proxy): tanpa Laporan Absensi. */
-const VIEWER_NAV = MAIN_NAV.filter((i) => i.href !== "/laporan" && i.href !== "/backup");
+const VIEWER_NAV = MAIN_NAV.filter((i) => i.href !== "/laporan" && i.href !== "/backup" && i.href !== "/libur");
+/** Office (hanya-lihat) juga melihat jadwal libur. */
+const OFFICE_NAV = MAIN_NAV.filter((i) => i.href !== "/laporan" && i.href !== "/backup");
 
 const SETTINGS_NAV: NavItem = {
   href: "/pengaturan",
@@ -100,7 +105,7 @@ function SidebarView({ pathname, className, readOnly, notif }: { pathname: strin
         md:static md:z-auto md:w-16 md:flex-col md:py-6 md:px-3 md:self-start md:sticky md:top-7 ${className}`}
     >
       <nav aria-label="Navigasi utama" className="flex flex-row md:flex-col items-center gap-6">
-        {(readOnly ? VIEWER_NAV : MAIN_NAV).map((item) => (
+        {(readOnly ? (notif ? OFFICE_NAV : VIEWER_NAV) : MAIN_NAV).map((item) => (
           <NavLink key={item.href} item={item} pathname={pathname} />
         ))}
       </nav>

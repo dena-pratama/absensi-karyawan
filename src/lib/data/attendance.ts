@@ -141,6 +141,9 @@ export function summarize(entries: { status: AttendanceStatus }[]) {
   const hadir = entries.filter((e) => e.status === "hadir").length;
   const sakit = entries.filter((e) => e.status === "sakit").length;
   const tidakHadir = entries.filter((e) => e.status === "tidak_hadir").length;
+  const libur = entries.filter((e) => e.status === "libur").length;
   const total = entries.length;
-  return { hadir, sakit, tidakHadir, total, percent: total ? Math.round((hadir / total) * 1000) / 10 : null };
+  // Hari libur tidak dihitung sebagai hari kerja: % hadir = hadir / (hari terisi - libur)
+  const workdays = total - libur;
+  return { hadir, sakit, tidakHadir, libur, total, percent: workdays ? Math.round((hadir / workdays) * 1000) / 10 : null };
 }

@@ -8,7 +8,7 @@ import { createUserAccount, deleteUserAccount, saveUserAccess, updateUserAccount
 import type { UserAccess } from "@/lib/data/access";
 import { APP_ROLE_LABEL, APP_ROLES, attendsSelf, holdsBranches, type AppRole } from "@/lib/labels";
 import { PASSWORD_MIN, USERNAME_HINT, usernameFromNik } from "@/lib/login-id";
-import { ApplyBar, ChangeBadge, Field, Modal, Pagination, SelectBox, Toast, filterCls, inputCls, useToastTimer } from "../_components/ui";
+import { ApplyBar, ChangeBadge, Field, Modal, Pagination, SecretInput, SelectBox, Toast, filterCls, inputCls, useToastTimer } from "../_components/ui";
 import { useStaged } from "../_components/staged";
 import { SearchSelect } from "../_components/search-select";
 import { BranchMultiPicker } from "./branch-multi-picker";
@@ -98,12 +98,10 @@ export function AccessManager({
   // Tambah akun (langsung dibuat, bukan draf)
   const [account, setAccount] = useState<NewAccount | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
   const [creating, startCreating] = useTransition();
   const closeAccount = () => setAccount(null);
   const openAccount = () => {
     setFormError(null);
-    setShowPassword(false);
     setAccount(EMPTY_ACCOUNT);
   };
   const createAccount = () =>
@@ -117,20 +115,21 @@ export function AccessManager({
     });
 
   // Ubah username / kata sandi & hapus akun (langsung diterapkan, bukan draf)
-  const [edit, setEdit] = useState<{ userId: string; current: string; login: string; password: string } | null>(null);
+  // changePassword: kata sandi hanya dikirim bila admin sengaja mencentang "Ganti kata sandi"
+  const [edit, setEdit] = useState<{ userId: string; current: string; login: string; password: string; changePassword: boolean } | null>(null);
   const [editError, setEditError] = useState<string | null>(null);
-  const [showEditPassword, setShowEditPassword] = useState(false);
   const [accountBusy, startAccountBusy] = useTransition();
   const openEdit = (userId: string) => {
     const current = userById.get(userId)?.email ?? "";
     setEditError(null);
-    setShowEditPassword(false);
-    setEdit({ userId, current, login: current, password: "" });
+    setEdit({ userId, current, login: current, password: "", changePassword: false });
   };
   const saveEdit = () =>
     startAccountBusy(async () => {
       if (!edit) return;
-      const res = await updateUserAccount({ userId: edit.userId, login: edit.login === edit.current ? "" : edit.login, password: edit.password });
+      const password = edit.changePassword ? edit.password : "";
+      if (edit.changePassword && password.length < PASSWORD_MIN) return setEditError(`Kata sandi baru minimal ${PASSWORD_MIN} karakter.`);
+      const res = await updateUserAccount({ userId: edit.userId, login: edit.login === edit.current ? "" : edit.login, password });
       if (!res.ok) return setEditError(res.error);
       setEdit(null);
       setToast({ text: res.message, error: false });
@@ -442,7 +441,7 @@ export function AccessManager({
       <Modal
         open={edit !== null}
         title="Ubah Akun"
-        description={edit ? `Akun ${edit.current}. Kosongkan kata sandi bila tidak ingin mengubahnya.` : undefined}
+        description={edit ? `Akun ${edit.current}. Kata sandi hanya berubah bila "Ganti kata sandi" dicentang.` : undefined}
         onClose={() => setEdit(null)}
         onSubmit={saveEdit}
         submitLabel={accountBusy ? "Menyimpan..." : "Simpan Perubahan"}
@@ -462,27 +461,25 @@ export function AccessManager({
                 required
               />
             </Field>
-            <Field label="Kata Sandi Baru" hint={`Opsional. Minimal ${PASSWORD_MIN} karakter, bebas huruf / angka / simbol.`}>
-              <span className="relative block">
+            <div className="flex flex-col gap-2">
+              <label className="flex items-center gap-2 text-[11px] font-medium text-slate-300 cursor-pointer select-none">
                 <input
-                  type={showEditPassword ? "text" : "password"}
-                  className={`${inputCls} pr-9`}
-                  value={edit.password}
-                  onChange={(e) => setEdit({ ...edit, password: e.target.value })}
-                  autoComplete="new-password"
-                  placeholder="tidak diubah"
-                  minLength={edit.password ? PASSWORD_MIN : undefined}
+                  type="checkbox"
+                  checked={edit.changePassword}
+                  onChange={(e) => setEdit({ ...edit, changePassword: e.target.checked, password: "" })}
+                  className="accent-cyan-400"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowEditPassword((v) => !v)}
-                  aria-label={showEditPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-gray-400 hover:text-brand-ink"
-                >
-                  <Icon name={showEditPassword ? "visibility_off" : "visibility"} className="text-[17px]" />
-                </button>
-              </span>
-            </Field>
+                Ganti kata sandi
+              </label>
+              {edit.changePassword ? (
+                <>
+                  <SecretInput value={edit.password} onChange={(v) => setEdit({ ...edit, password: v })} placeholder="kata sandi baru" required minLength={PASSWORD_MIN} label="Kata sandi baru" />
+                  <span className="text-[10px] text-slate-500">Minimal {PASSWORD_MIN} karakter. Berikan ke pengguna akun ini.</span>
+                </>
+              ) : (
+                <span className="text-[10px] text-slate-500">Kata sandi tidak diubah.</span>
+              )}
+            </div>
           </div>
         )}
       </Modal>
@@ -513,25 +510,7 @@ export function AccessManager({
                 />
               </Field>
               <Field label="Kata Sandi Awal" hint={`Minimal ${PASSWORD_MIN} karakter, bebas huruf / angka / simbol.`}>
-                <span className="relative block">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    className={`${inputCls} pr-9`}
-                    value={account.password}
-                    onChange={(e) => setAccount({ ...account, password: e.target.value })}
-                    autoComplete="new-password"
-                    minLength={PASSWORD_MIN}
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    aria-label={showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-gray-400 hover:text-brand-ink"
-                  >
-                    <Icon name={showPassword ? "visibility_off" : "visibility"} className="text-[17px]" />
-                  </button>
-                </span>
+                <SecretInput value={account.password} onChange={(v) => setAccount({ ...account, password: v })} required minLength={PASSWORD_MIN} label="Kata sandi awal" />
               </Field>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">

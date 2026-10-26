@@ -13,7 +13,7 @@ export type ReportFilters = {
 export const MAX_RANGE_DAYS = 366;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const STATUSES = ["hadir", "sakit", "tidak_hadir"];
+const STATUSES = ["hadir", "sakit", "tidak_hadir", "libur"];
 
 type Params = Record<string, string | string[] | undefined> | URLSearchParams;
 

@@ -12,9 +12,9 @@ const PUBLIC_PATHS = ["/login"];
 /** Halaman untuk akun login yang belum diberi role. */
 const DENIED_PATH = "/akses-ditolak";
 /** Halaman yang boleh dibuka SPV / karyawan (hanya-lihat, kecuali ajukan kasbon miliknya). */
-const VIEWER_PATHS = ["/", "/absensi", "/kasbon", "/notifikasi"]; // /notifikasi: halaman menolak SPV & karyawan
+const VIEWER_PATHS = ["/", "/absensi", "/kasbon", "/notifikasi", "/libur"]; // /notifikasi & /libur: halaman menolak SPV & karyawan
 /** Sub-halaman khusus admin di dalam VIEWER_PATHS. */
-const ADMIN_ONLY_PATHS = ["/kasbon/pengaturan"];
+const ADMIN_ONLY_PATHS = ["/kasbon/pengaturan", "/libur/pengaturan"];
 
 /** Refresh sesi Supabase di setiap request + redirect sesuai status login. */
 export async function updateSession(request: NextRequest) {
@@ -63,11 +63,11 @@ export async function updateSession(request: NextRequest) {
   if (!isLoggedIn) return isPublic ? response : redirectTo("/login");
   if (isPublic) return redirectTo("/");
 
-  // Admin: semua halaman. SPV / karyawan: hanya-lihat Dashboard + menu Absensi, plus Kasbon miliknya.
-  // Akun tanpa role → halaman penjelasan. Data tetap dijaga RLS; fungsi belum ada
-  // (migrasi RLS belum dijalankan) atau error lain → perlakukan sebagai admin (mode lama).
+  // Admin: semua halaman. SPV / Office / karyawan: hanya-lihat Dashboard + Absensi, plus Kasbon & Notifikasi.
+  // Akun tanpa role → halaman penjelasan. Gagal membaca role (error apa pun) = TANPA akses (fail closed),
+  // bukan admin: dulu dianggap admin selama migrasi RLS belum dijalankan, sekarang RLS sudah aktif.
   const { data: role, error } = await supabase.rpc("current_app_role");
-  const access = error || role === "admin" ? "admin" : role === "spv" || role === "office" || role === "karyawan" ? "viewer" : "none";
+  const access = error ? "none" : role === "admin" ? "admin" : role === "spv" || role === "office" || role === "karyawan" ? "viewer" : "none";
 
   if (access === "none") return isDenied ? response : redirectTo(DENIED_PATH);
   if (isDenied) return redirectTo("/");

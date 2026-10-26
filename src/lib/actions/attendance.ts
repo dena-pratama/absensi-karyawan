@@ -15,7 +15,7 @@ export type AttendanceChange = {
 
 export type SaveResult = { ok: true; saved: number } | { ok: false; error: string };
 
-const STATUSES: AttendanceStatus[] = ["hadir", "sakit", "tidak_hadir"];
+const STATUSES: AttendanceStatus[] = ["hadir", "sakit", "tidak_hadir", "libur"];
 const NOTE_MAX = 200;
 
 /**

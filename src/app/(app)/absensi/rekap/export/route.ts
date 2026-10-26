@@ -3,7 +3,7 @@ import { getMonthlyRekap } from "@/lib/data/rekap";
 import { getShellData } from "@/lib/data/shell";
 import { monthOf, parseMonthParam, todayWIB } from "@/lib/format";
 
-const CODE = { hadir: "H", sakit: "S", tidak_hadir: "TH" } as const;
+const CODE = { hadir: "H", sakit: "S", tidak_hadir: "TH", libur: "L" } as const;
 
 function csvCell(value: string | number) {
   const s = String(value);

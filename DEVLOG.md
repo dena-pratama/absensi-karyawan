@@ -5,6 +5,76 @@ Format: entri terbaru di paling atas.
 
 ---
 
+## 2026-10-27 — Migrasi susulan fungsi tukar off
+
+Sesi mobile melaporkan `day_off_swap_options` & `my_day_off_swaps` belum ada di Supabase (PGRST202), padahal
+`day_off_quota` ada: bagian 9 ditambahkan ke file day_off setelah file itu sempat dijalankan user. Dibuat
+`20261102000000_day_off_swap_rpc.sql` (isi sama dengan bagian 9 + `notify pgrst, 'reload schema'`), aman dijalankan ulang;
+semua migrasi lolos di PGlite. Sudah dijalankan user, berhasil.
+
+---
+
+## 2026-10-27 — Jatah libur, pengajuan libur & tukar off (3 bentuk)
+
+Keputusan user: jatah libur per karyawan; karyawan tetap bisa absen di hari libur; tukar off dijalankan ketiganya
+(off pengganti, pindah off sendiri, tukar dengan rekan). Default yang dipakai (saran, diterima user): status absensi baru
+"Libur", jatah per periode gajian, disetujui SPV cabangnya / Office / admin, off pengganti berlaku 30 hari.
+- Migrasi `20261101000000_day_off.sql` (sudah dijalankan user, berhasil):
+  - status `attendance_daily` + 'libur'; tabel `day_off_setting`, `job_role_day_off`, `employee_day_off`, `day_off`,
+    `day_off_credit` (saldo off pengganti), `day_off_swap`; RLS baca saja (milik sendiri, atasan, admin/office; libur yang
+    disetujui terlihat rekan satu cabang untuk tukar off).
+  - RPC: `day_off_quota`, `day_off_request` (jatah / pengganti / pindah via `p_replaces`), `day_off_cancel`,
+    `day_off_decide`, `day_off_swap_request` / `_respond` / `_cancel` / `_decide`. Persetujuan menulis baris absensi
+    'Libur'; libur tidak boleh di masa lalu, bentrok absensi, backup, atau libur lain; tidak boleh menyetujui libur sendiri.
+  - `attendance_check`: check in di hari libur diterima → status Hadir ("Masuk di hari libur"), libur jadi 'masuk',
+    +1 saldo off pengganti. `admin_reset_data` ikut menghapus data libur.
+  - RPC untuk app (permintaan sesi mobile): `day_off_swap_options()` (libur rekan satu cabang + nama) dan
+    `my_day_off_swaps()` (tukar off saya / yang menunggu persetujuan saya, dengan nama & tanggal).
+  - Diuji di PGlite: 22 skenario (jatah habis, izin, off hari ini + check in, saldo pengganti, pindah, tukar dengan rekan,
+    bentrok backup) + skenario lama SPV / office / WFA / reset tetap sesuai.
+- Web: status Libur di checklist admin, Rekap (L), Laporan, PDF, dashboard (Libur tidak menurunkan % hadir:
+  hadir / (hari kerja - libur)), detail karyawan, AI. Halaman `/libur` (admin proses, Office lihat saja): ringkasan,
+  jadwal & pengajuan (akan datang / menunggu / riwayat), tukar off. `/libur/pengaturan` (admin): jatah per jabatan,
+  jatah khusus karyawan, masa berlaku off pengganti. Menu sidebar "Libur Karyawan" di bawah Backup; notifikasi pengajuan libur.
+- `tsc`, `eslint`, `next build` lolos.
+
+---
+
+## 2026-10-27 — Pengerasan keamanan: fail closed + header keamanan
+
+Hasil cek keamanan cepat atas permintaan user: secret key hanya di server (`server-only`, tanpa NEXT_PUBLIC), `.env*`
+tidak di-commit (web & mobile), app mobile hanya publishable key, bucket foto privat, RLS per role, `npm audit` 0 celah.
+Diperbaiki:
+- **Fallback admin dihapus (fail closed).** Dulu, sebelum migrasi RLS, gagal membaca role = dianggap admin. Sekarang:
+  proxy → error membaca role = tanpa akses (halaman akses ditolak); `getMyAccess()` → fungsi role tidak ada = role null.
+  Penting karena banyak server action / route (notifikasi, AI insight, backup DB, reset) memakai secret key setelah cek ini.
+- **Header keamanan** di `next.config.ts` untuk semua halaman: X-Frame-Options DENY + CSP `frame-ancestors 'none'`
+  (anti clickjacking), `base-uri` / `form-action 'self'`, `object-src 'none'`, nosniff, Referrer-Policy, Permissions-Policy
+  (kamera & mikrofon mati, lokasi hanya situs ini), HSTS 2 tahun.
+- Dicek: header muncul di respons dev server, halaman login tampil normal. `tsc`, `eslint`, `next build` lolos.
+Saran yang perlu diatur user di dashboard: matikan pendaftaran publik (Supabase > Authentication > Sign In / Providers >
+Allow new users to sign up = off), kata sandi minimal 6 karakter cukup lemah (pertimbangkan 8), Vercel Hobby untuk
+non-komersial.
+
+---
+
+## 2026-10-26 — Kata sandi akun berubah sendiri saat demo (isi-otomatis browser)
+
+Laporan user: setelah membuat beberapa akun di web lalu login di app, kata sandi akun jadi berbeda dan harus diubah ulang.
+Analisis: app mobile tidak pernah mengubah kata sandi (hanya `signInWithPassword`); satu-satunya jalur yang mengubah
+kata sandi adalah popup Tambah Akun / Ubah Akun di web. Field kata sandi di popup itu bisa diisi otomatis browser
+(Chrome / Edge) dengan kata sandi admin yang tersimpan untuk domain ini, diam-diam, sehingga saat "Simpan" kata sandi akun
+karyawan ikut diganti. Kemungkinan besar ini penyebabnya (bisa dikonfirmasi di Supabase > Authentication > Logs:
+event `user_updated_password` / `user_modified` pada akun yang bermasalah).
+Perbaikan:
+- `SecretInput` (pengaturan/_components/ui.tsx): field read-only sampai difokus (browser tidak mengisi field read-only),
+  `autoComplete="new-password"`, atribut pengabaian password manager; dipakai di Tambah Akun & Ubah Akun.
+- Ubah Akun: kata sandi hanya dikirim bila "Ganti kata sandi" dicentang (default tidak); tanpa centang field tidak tampil.
+- Dicek di browser: field read-only saat popup terbuka, aktif setelah difokus, input tersimpan. `tsc`, `eslint`,
+  `next build` lolos.
+
+---
+
 ## 2026-10-25 — Notifikasi: tampilkan lebih banyak + halaman Notifikasi
 
 Permintaan user: "show more" di panel notifikasi dan halaman detail notifikasi di bawah menu Pengaturan.

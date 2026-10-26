@@ -33,6 +33,7 @@ const STATUS_STYLE: Record<AttendanceStatus, { fill: string; chip: string; dot: 
   hadir: { fill: "#10b981", chip: "bg-emerald-500/15 text-emerald-300", dot: "bg-emerald-400", short: "H" },
   sakit: { fill: "#f59e0b", chip: "bg-amber-500/20 text-amber-300", dot: "bg-amber-400", short: "S" },
   tidak_hadir: { fill: "#f43f5e", chip: "bg-rose-500/20 text-rose-300", dot: "bg-rose-400", short: "TH" },
+  libur: { fill: "#38bdf8", chip: "bg-sky-500/15 text-sky-300", dot: "bg-sky-400", short: "L" },
 };
 
 const CONTRACT_LABEL = { tetap: "Tetap (PKWTT)", pkwt: "PKWT (Kontrak)", mitra: "Kemitraan / Ritase" } as const;
@@ -216,6 +217,7 @@ function Composition({ summary }: { summary: ReturnType<typeof summarize> }) {
     { key: "hadir", value: summary.hadir },
     { key: "sakit", value: summary.sakit },
     { key: "tidak_hadir", value: summary.tidakHadir },
+    { key: "libur", value: summary.libur },
   ];
   if (summary.total === 0) return <p className="text-xs text-gray-400">Belum ada data bulan ini.</p>;
 

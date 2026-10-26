@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useEffectEvent, useRef } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { AnimatePresence, m } from "motion/react";
 import { Icon } from "@/components/icon";
 import { POP } from "@/components/motion";
@@ -208,6 +208,62 @@ export function ApplyBar({
 }
 
 export { Toast } from "@/components/toast";
+
+/**
+ * Input kata sandi untuk akun LAIN (tambah / ubah akun), aman dari isi-otomatis browser.
+ * Browser (Chrome / Edge) suka mengisi kata sandi tersimpan milik admin ke field password mana pun,
+ * diam-diam, sehingga akun karyawan ikut berganti kata sandi tanpa disadari. Pencegahan:
+ * field read-only sampai benar-benar difokus (browser tidak mengisi field read-only),
+ * autoComplete "new-password", dan atribut pengabaian password manager populer.
+ */
+export function SecretInput({
+  value,
+  onChange,
+  placeholder,
+  required,
+  minLength,
+  label,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  required?: boolean;
+  minLength?: number;
+  label?: string;
+}) {
+  const [show, setShow] = useState(false);
+  const [unlocked, setUnlocked] = useState(false);
+  return (
+    <span className="relative block">
+      <input
+        type={show ? "text" : "password"}
+        name="kata-sandi-akun-lain"
+        aria-label={label}
+        className={`${inputCls} pr-9`}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        readOnly={!unlocked}
+        onFocus={() => setUnlocked(true)}
+        autoComplete="new-password"
+        data-lpignore="true"
+        data-1p-ignore="true"
+        data-bwignore="true"
+        data-form-type="other"
+        placeholder={placeholder}
+        required={required}
+        minLength={minLength}
+      />
+      <button
+        type="button"
+        onClick={() => setShow((v) => !v)}
+        aria-label={show ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
+        className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-gray-400 hover:text-brand-ink"
+      >
+        <Icon name={show ? "visibility_off" : "visibility"} className="text-[17px]" />
+      </button>
+    </span>
+  );
+}
 
 /** Tombol hapus baris tabel (ikon tong sampah). */
 export function DeleteButton({ label, disabled, title, onClick }: { label: string; disabled?: boolean; title?: string; onClick: () => void }) {

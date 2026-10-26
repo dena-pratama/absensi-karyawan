@@ -11,6 +11,7 @@ const KIND: Record<NotificationKind, { label: string; icon: string; cls: string 
   check_out: { label: "Check out", icon: "logout", cls: "bg-cyan-500/15 text-cyan-400" },
   kasbon: { label: "Kasbon", icon: "payments", cls: "bg-amber-500/15 text-amber-400" },
   backup: { label: "Backup", icon: "swap_horiz", cls: "bg-purple-500/15 text-purple-400" },
+  libur: { label: "Libur", icon: "beach_access", cls: "bg-sky-500/15 text-sky-400" },
 };
 const KINDS = Object.keys(KIND) as NotificationKind[];
 const PAGE = 30;
@@ -46,7 +47,7 @@ export function NotificationList({ result, days, ranges }: { result: Notificatio
 
   return (
     <>
-      <section aria-label="Ringkasan notifikasi" className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <section aria-label="Ringkasan notifikasi" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         {KINDS.map((k) => (
           <button
             key={k}
