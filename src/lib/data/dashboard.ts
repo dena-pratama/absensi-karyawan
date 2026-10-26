@@ -18,9 +18,8 @@ export type BranchStats = BranchSummary & {
   hadir: number;
   sakit: number;
   tidakHadir: number;
-  libur: number;
   belum: number;
-  percent: number | null; // hadir / (staf aktif - libur)
+  percent: number | null; // hadir / total staf aktif
   staff: StaffToday[];
   lastUpdate: string | null;
 };
@@ -97,9 +96,8 @@ export async function getDashboardStats(branches: BranchSummary[], date: string)
       hadir,
       sakit: count("sakit"),
       tidakHadir: count("tidak_hadir"),
-      libur: count("libur"),
       belum: count(null),
-      percent: staff.length - count("libur") > 0 ? Math.round((hadir / (staff.length - count("libur"))) * 100) : null,
+      percent: staff.length ? Math.round((hadir / staff.length) * 100) : null,
       staff,
       lastUpdate: staff[0]?.updatedAt ?? null,
     };
@@ -116,9 +114,8 @@ export type RangeSummary = {
   hadir: number;
   sakit: number;
   tidakHadir: number;
-  libur: number;
   belum: number;
-  percent: number | null; // hadir / (expected - libur)
+  percent: number | null; // hadir / expected
   filled: number | null; // terisi / expected
   /** Persentase hadir periode sebelumnya dengan panjang sama (pembanding). */
   prevPercent: number | null;
@@ -169,14 +166,13 @@ export async function getRangeSummary(stats: BranchStats[], from: string, to: st
   const expected = staff * days;
   const count = (list: Row[], s: AttendanceStatus) => list.filter((r) => r.status === s).length;
   const hadir = count(current, "hadir");
-  const libur = count(current, "libur");
   const pct = (n: number, total: number) => (total ? Math.round((n / total) * 100) : null);
 
   const perBranch = stats
     .filter((s) => s.total > 0)
     .map((s) => {
       const mine = current.filter((r) => r.branch_id === s.id);
-      return { code: s.code, recorded: mine.length, expected: s.total * days, percent: pct(count(mine, "hadir"), s.total * days - count(mine, "libur")) ?? 0 };
+      return { code: s.code, recorded: mine.length, expected: s.total * days, percent: pct(count(mine, "hadir"), s.total * days) ?? 0 };
     });
   const lowest = [...perBranch].sort((a, b) => a.percent - b.percent)[0];
 
@@ -189,11 +185,10 @@ export async function getRangeSummary(stats: BranchStats[], from: string, to: st
     hadir,
     sakit: count(current, "sakit"),
     tidakHadir: count(current, "tidak_hadir"),
-    libur,
     belum: Math.max(0, expected - current.length),
-    percent: pct(hadir, expected - libur),
+    percent: pct(hadir, expected),
     filled: pct(Math.min(current.length, expected), expected),
-    prevPercent: pct(count(previous, "hadir"), expected - count(previous, "libur")),
+    prevPercent: pct(count(previous, "hadir"), expected),
     branchCount: perBranch.length,
     completeBranches: perBranch.filter((b) => b.recorded >= b.expected).length,
     lowest: lowest ? { code: lowest.code, percent: lowest.percent } : null,

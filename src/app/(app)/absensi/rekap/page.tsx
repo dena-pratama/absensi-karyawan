@@ -30,14 +30,12 @@ const CELL: Record<AttendanceStatus, { label: string; cls: string }> = {
   hadir: { label: "H", cls: "bg-emerald-500/15 text-emerald-400" },
   sakit: { label: "S", cls: "bg-amber-500/20 text-amber-400" },
   tidak_hadir: { label: "TH", cls: "bg-rose-500/20 text-rose-400" },
-  libur: { label: "L", cls: "bg-sky-500/15 text-sky-300" },
 };
 
 const LEGEND = [
   { dot: "bg-emerald-500", text: "text-emerald-400", label: "Hadir (H)" },
   { dot: "bg-amber-500", text: "text-amber-400", label: "Sakit (S)" },
   { dot: "bg-rose-500", text: "text-rose-400", label: "Tidak Hadir (TH)" },
-  { dot: "bg-sky-500", text: "text-sky-300", label: "Libur (L)" },
   { dot: "bg-slate-600", text: "text-slate-400", label: "Belum diisi (-)" },
 ];
 

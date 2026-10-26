@@ -33,7 +33,6 @@ const COLUMNS: { status: AttendanceStatus; label: string; head: string; hover: s
   { status: "hadir", label: "Hadir", head: "text-emerald-400", hover: "hover:bg-emerald-500/10", accent: "accent-emerald-500" },
   { status: "sakit", label: "Sakit", head: "text-amber-400", hover: "hover:bg-amber-500/10", accent: "accent-amber-500" },
   { status: "tidak_hadir", label: "Tidak Hadir", head: "text-rose-400", hover: "hover:bg-rose-500/10", accent: "accent-rose-500" },
-  { status: "libur", label: "Libur", head: "text-sky-300", hover: "hover:bg-sky-500/10", accent: "accent-sky-500" },
 ];
 
 const ROW_TINT: Record<string, string> = {
@@ -146,7 +145,7 @@ export function AttendanceForm({
       else acc.belum += 1;
       return acc;
     },
-    { hadir: 0, sakit: 0, tidak_hadir: 0, libur: 0, belum: 0 },
+    { hadir: 0, sakit: 0, tidak_hadir: 0, belum: 0 },
   );
 
   const setEntry = (id: string, patch: Partial<Entry>) =>

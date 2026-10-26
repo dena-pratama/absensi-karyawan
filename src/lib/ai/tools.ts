@@ -12,7 +12,7 @@ import { signPayload } from "./crypto";
 import type { ToolDef, ToolExecutor } from "./engine";
 import { PROPOSAL_TTL_MS, type AttendanceProposal, type SignedProposal } from "./proposal";
 
-const STATUS_ENUM = ["hadir", "sakit", "tidak_hadir", "libur"];
+const STATUS_ENUM = ["hadir", "sakit", "tidak_hadir"];
 const ROW_LIMIT = 150;
 
 const obj = (properties: Record<string, unknown>, required: string[] = []): ToolDef["parameters"] => ({

@@ -30,7 +30,6 @@ const STATUS_CHIP: Record<AttendanceStatus, string> = {
   hadir: "bg-emerald-500/15 text-emerald-300",
   sakit: "bg-amber-500/15 text-amber-300",
   tidak_hadir: "bg-rose-500/15 text-rose-300",
-  libur: "bg-sky-500/15 text-sky-300",
 };
 
 const uid = () => Math.random().toString(36).slice(2, 10);

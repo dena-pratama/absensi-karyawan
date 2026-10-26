@@ -15,14 +15,12 @@ const C = {
   hadir: "#047857",
   sakit: "#b45309",
   tidak_hadir: "#be123c",
-  libur: "#0369a1",
 };
 
 const STATUS_BG: Record<AttendanceStatus, string> = {
   hadir: "#ecfdf5",
   sakit: "#fffbeb",
   tidak_hadir: "#fff1f2",
-  libur: "#f0f9ff",
 };
 
 const s = StyleSheet.create({

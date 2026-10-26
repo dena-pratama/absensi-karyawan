@@ -21,7 +21,6 @@ const KIND: Record<NotificationKind, { icon: string; cls: string }> = {
   check_out: { icon: "logout", cls: "bg-cyan-500/15 text-cyan-400" },
   kasbon: { icon: "payments", cls: "bg-amber-500/15 text-amber-400" },
   backup: { icon: "swap_horiz", cls: "bg-purple-500/15 text-purple-400" },
-  libur: { icon: "beach_access", cls: "bg-sky-500/15 text-sky-400" },
 };
 
 function ago(iso: string) {

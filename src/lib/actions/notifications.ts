@@ -4,7 +4,7 @@ import { getMyAccess } from "@/lib/data/access";
 import { formatTimeWIB } from "@/lib/format";
 import { createServiceClient, isAdminApiConfigured } from "@/lib/supabase/admin";
 
-export type NotificationKind = "check_in" | "check_out" | "kasbon" | "backup" | "libur";
+export type NotificationKind = "check_in" | "check_out" | "kasbon" | "backup";
 
 export type AppNotification = {
   id: string;
@@ -43,7 +43,7 @@ export async function getNotifications(opts: { days?: number; limit?: number } =
   const since = new Date(Date.now() - days * 86_400_000).toISOString();
   const att = "id, attendance_date, check_in_at, check_out_at, check_in_wfa, check_out_wfa, employee:employee_id(full_name), branch:branch_id(code)";
 
-  const [ins, outs, kasbon, backups, offs] = await Promise.all([
+  const [ins, outs, kasbon, backups] = await Promise.all([
     db.from("attendance_daily").select(att).gte("check_in_at", since).order("check_in_at", { ascending: false }).limit(PER_SOURCE),
     db.from("attendance_daily").select(att).gte("check_out_at", since).order("check_out_at", { ascending: false }).limit(PER_SOURCE),
     db
@@ -57,13 +57,6 @@ export async function getNotifications(opts: { days?: number; limit?: number } =
       .select("id, created_at, date_from, date_to, employee:employee_id(full_name), to_branch:to_branch_id(code)")
       .gte("created_at", since)
       .order("created_at", { ascending: false })
-      .limit(PER_SOURCE),
-    // Pengajuan libur (tabel ada setelah migrasi day_off; error diabaikan bila belum)
-    db
-      .from("day_off")
-      .select("id, off_date, kind, status, requested_at, replaces_id, employee:employee_id(full_name)")
-      .gte("requested_at", since)
-      .order("requested_at", { ascending: false })
       .limit(PER_SOURCE),
   ]);
 
@@ -122,18 +115,6 @@ export async function getNotifications(opts: { days?: number; limit?: number } =
       title: `Backup ${b.employee?.full_name ?? "karyawan"} ke ${b.to_branch?.code ?? "-"}`,
       detail: b.date_from === b.date_to ? b.date_from : `${b.date_from} s/d ${b.date_to}`,
       href: "/backup",
-    });
-  }
-
-  type Off = { id: string; off_date: string; kind: string; status: string; requested_at: string; replaces_id: string | null; employee: { full_name: string } | null };
-  for (const o of (offs.error ? [] : (offs.data ?? [])) as unknown as Off[]) {
-    items.push({
-      id: `libur-${o.id}`,
-      kind: "libur",
-      at: o.requested_at,
-      title: `${o.employee?.full_name ?? "Karyawan"} ${o.replaces_id ? "memindah libur" : "mengajukan libur"}`,
-      detail: `${o.off_date}${o.kind === "pengganti" ? " · off pengganti" : ""}${o.status === "diajukan" ? " · menunggu persetujuan" : ` · ${o.status}`}`,
-      href: "/libur",
     });
   }
 

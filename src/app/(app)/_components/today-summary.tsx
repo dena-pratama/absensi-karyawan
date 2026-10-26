@@ -33,7 +33,7 @@ export function TodaySummary({
   /** Filter rentang tanggal & tombol Global (client). */
   controls?: React.ReactNode;
 }) {
-  const { hadir, sakit, tidakHadir, libur, belum, expected, percent, filled, prevPercent, days } = summary;
+  const { hadir, sakit, tidakHadir, belum, expected, percent, filled, prevPercent, days } = summary;
   const delta = percent !== null && prevPercent !== null ? percent - prevPercent : null;
   const single = days === 1;
   const title = single ? (isToday ? "Ringkasan Hari Ini" : "Ringkasan Harian") : `Ringkasan ${days} Hari`;
@@ -43,7 +43,6 @@ export function TodaySummary({
     { label: "Hadir", value: hadir, color: "bg-emerald-400", text: "text-emerald-300" },
     { label: "Sakit", value: sakit, color: "bg-amber-400", text: "text-amber-300" },
     { label: "Tidak Hadir", value: tidakHadir, color: "bg-rose-400", text: "text-rose-300" },
-    { label: "Libur", value: libur, color: "bg-sky-400", text: "text-sky-300" },
     { label: "Belum Diabsen", value: belum, color: "bg-gray-500", text: "text-gray-400" },
   ];
 
@@ -115,7 +114,7 @@ export function TodaySummary({
                 .filter((p) => p.value > 0)
                 .map((p, i) => <GrowBar key={p.label} percent={(p.value / expected) * 100} index={i} className={`h-full ${p.color}`} />)}
           </div>
-          <dl className="grid grid-cols-2 @lg:grid-cols-3 gap-2">
+          <dl className="grid grid-cols-2 gap-2">
             {parts.map((p) => (
               <div key={p.label} className="rounded-xl bg-panel-inset border border-line px-3 py-2">
                 <dt className="text-[10px] text-gray-400 flex items-center gap-1.5">

@@ -193,8 +193,7 @@ Jalankan file berikut **berurutan** di **Supabase → SQL Editor**:
 | 16 | `supabase/migrations/20261029000000_ai_limit_alert.sql` | Penanda konektor AI kena limit. |
 | 17 | `supabase/migrations/20261030000000_wfa.sql` | WFA untuk SPV & Office; Office deteksi outlet otomatis. |
 | 18 | `supabase/migrations/20261031000000_reset_data.sql` | Fungsi `admin_reset_data()` untuk Pengaturan > Reset Data. |
-| 19 | `supabase/migrations/20261101000000_day_off.sql` | Status absensi **Libur**, jatah libur per jabatan / karyawan per periode gajian, pengajuan & persetujuan libur, off pengganti, pindah off, tukar off dengan rekan. |
-| 20 | `supabase/migrations/20261102000000_day_off_swap_rpc.sql` | Fungsi `day_off_swap_options()` & `my_day_off_swaps()` untuk tukar off di app (nama rekan). |
+| 19 | `supabase/migrations/20261103000000_rollback_day_off.sql` | Membatalkan fitur Libur (yang sempat dijalankan): data 'libur' → 'tidak_hadir', status kembali 3, fungsi & tabel libur dihapus. Aman untuk instalasi baru. |
 | — | `supabase/seed_demo.sql` | *Opsional* — data demo (cabang & karyawan fiktif). |
 
 > **Instalasi baru:** jalankan migrasi #6 **setelah** membuat akun admin pertama (langkah 2), atau jalankan ulang file itu setelahnya. Selama tabel `app_user` masih kosong, akun yang sudah ada otomatis dijadikan admin.

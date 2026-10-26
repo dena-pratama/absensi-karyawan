@@ -5,6 +5,24 @@ Format: entri terbaru di paling atas.
 
 ---
 
+## 2026-10-27 — Rollback fitur Libur (kembali ke v.02.22 untuk bagian itu)
+
+Permintaan user: kembalikan web ke versi v.02.22, rapikan kode, dan perbaiki skema database yang sempat dijalankan.
+Keputusan user: hanya fitur **Libur & tukar off** yang dibatalkan; perbaikan sesudah v.02.22 lainnya tetap
+(kata sandi aman dari isi-otomatis, fail closed + header keamanan, sidebar tidak menutupi topbar); data absensi 'libur'
+diubah menjadi 'tidak_hadir'; dibuat sebagai commit baru (riwayat git tetap utuh).
+- Kode: file yang hanya berisi fitur Libur dikembalikan persis ke commit v.02.22 (`4136332`); halaman `/libur`,
+  `lib/data/day-off.ts`, `lib/actions/day-off.ts` dihapus; menu Libur di sidebar & izin `/libur` di proxy dihapus.
+- Database: file `20261101000000_day_off.sql` & `20261102000000_day_off_swap_rpc.sql` dihapus dari repo, diganti
+  `20261103000000_rollback_day_off.sql` (**belum dijalankan user**): ubah data libur → tidak_hadir, status kembali 3,
+  pasang lagi `attendance_check` (versi WFA) & `admin_reset_data` sebelumnya, hapus policy → fungsi → tabel libur,
+  `notify pgrst`. Diuji di PGlite: kondisi database user (day_off sudah jalan) → rollback 2x aman, 0 tabel/fungsi libur
+  tersisa, status 'libur' ditolak; instalasi baru dari repo juga jalan; skenario SPV / Office / WFA / reset tetap sama.
+- App mobile masih memanggil fungsi libur: setelah rollback dijalankan, layar Libur di app akan error / kosong sampai
+  versi app disesuaikan.
+
+---
+
 ## 2026-10-27 — Sidebar menutupi topbar di layar pendek
 
 Laporan user (screenshot): sidebar naik menutupi logo topbar. Penyebab: setelah menu Libur & Notifikasi ditambah, tinggi

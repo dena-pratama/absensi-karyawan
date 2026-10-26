@@ -12,9 +12,9 @@ const PUBLIC_PATHS = ["/login"];
 /** Halaman untuk akun login yang belum diberi role. */
 const DENIED_PATH = "/akses-ditolak";
 /** Halaman yang boleh dibuka SPV / karyawan (hanya-lihat, kecuali ajukan kasbon miliknya). */
-const VIEWER_PATHS = ["/", "/absensi", "/kasbon", "/notifikasi", "/libur"]; // /notifikasi & /libur: halaman menolak SPV & karyawan
+const VIEWER_PATHS = ["/", "/absensi", "/kasbon", "/notifikasi"]; // /notifikasi: halaman menolak SPV & karyawan
 /** Sub-halaman khusus admin di dalam VIEWER_PATHS. */
-const ADMIN_ONLY_PATHS = ["/kasbon/pengaturan", "/libur/pengaturan"];
+const ADMIN_ONLY_PATHS = ["/kasbon/pengaturan"];
 
 /** Refresh sesi Supabase di setiap request + redirect sesuai status login. */
 export async function updateSession(request: NextRequest) {
