@@ -14,7 +14,7 @@ diubah menjadi 'tidak_hadir'; dibuat sebagai commit baru (riwayat git tetap utuh
 - Kode: file yang hanya berisi fitur Libur dikembalikan persis ke commit v.02.22 (`4136332`); halaman `/libur`,
   `lib/data/day-off.ts`, `lib/actions/day-off.ts` dihapus; menu Libur di sidebar & izin `/libur` di proxy dihapus.
 - Database: file `20261101000000_day_off.sql` & `20261102000000_day_off_swap_rpc.sql` dihapus dari repo, diganti
-  `20261103000000_rollback_day_off.sql` (**belum dijalankan user**): ubah data libur → tidak_hadir, status kembali 3,
+  `20261103000000_rollback_day_off.sql` (sudah dijalankan user, berhasil): ubah data libur → tidak_hadir, status kembali 3,
   pasang lagi `attendance_check` (versi WFA) & `admin_reset_data` sebelumnya, hapus policy → fungsi → tabel libur,
   `notify pgrst`. Diuji di PGlite: kondisi database user (day_off sudah jalan) → rollback 2x aman, 0 tabel/fungsi libur
   tersisa, status 'libur' ditolak; instalasi baru dari repo juga jalan; skenario SPV / Office / WFA / reset tetap sama.
