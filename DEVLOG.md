@@ -5,6 +5,18 @@ Format: entri terbaru di paling atas.
 
 ---
 
+## 2026-10-27 — Sidebar menutupi topbar di layar pendek
+
+Laporan user (screenshot): sidebar naik menutupi logo topbar. Penyebab: setelah menu Libur & Notifikasi ditambah, tinggi
+sidebar (± 620px) melebihi layar pendek; kelas `bottom-[…]` untuk bilah bawah versi mobile ikut berlaku pada sticky di
+desktop, sehingga sidebar didorong ke atas agar bawahnya muat di layar.
+- `md:bottom-auto`, jarak ikon dirapatkan (gap 16px, padding lebih kecil), tinggi dibatasi layar
+  (`max-h: 100dvh - 3.5rem`, bisa di-scroll sendiri bila tidak muat).
+- Mobile: ikon 36px tanpa jarak agar 9 ikon muat di bilah bawah (bisa digeser bila lebih).
+- Dicek dengan replika layout di 1100×600 (sidebar di bawah topbar, menempel saat scroll) & 375×812 (9 ikon muat).
+
+---
+
 ## 2026-10-27 — Migrasi susulan fungsi tukar off
 
 Sesi mobile melaporkan `day_off_swap_options` & `my_day_off_swaps` belum ada di Supabase (PGRST202), padahal

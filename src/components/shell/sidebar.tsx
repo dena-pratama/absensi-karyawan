@@ -81,7 +81,7 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
       className={`relative flex flex-col items-center group ${active ? "text-brand-ink" : "text-gray-400"}`}
     >
       <span
-        className={`w-10 h-10 rounded-2xl flex items-center justify-center transition ${
+        className={`w-9 h-9 md:w-10 md:h-10 rounded-2xl flex items-center justify-center transition ${
           active
             ? "bg-brand/10 shadow-[0_0_12px_rgba(0,210,255,0.25)]"
             : "hover:text-brand-ink hover:bg-panel-raised"
@@ -99,17 +99,21 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
 function SidebarView({ pathname, className, readOnly, notif }: { pathname: string; className: string; readOnly: boolean; notif: boolean }) {
   return (
     <aside
-      // Mobile: bilah navigasi tetap di bawah layar. Desktop: kolom kiri, menempel di bawah topbar saat scroll.
+      // Mobile: bilah navigasi tetap di bawah layar (bisa digeser bila ikon banyak).
+      // Desktop: kolom kiri, menempel di bawah topbar saat scroll. md:bottom-auto penting: tanpa itu inset bawah
+      // versi mobile ikut berlaku pada sticky dan mendorong sidebar ke atas menutupi topbar di layar pendek.
+      // Tinggi dibatasi layar; kalau ikon tidak muat, sidebar bisa di-scroll sendiri.
       className={`bg-panel border border-line-strong rounded-full shadow-xl flex-shrink-0 flex items-center justify-between
-        fixed z-40 inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] flex-row px-6 py-2
-        md:static md:z-auto md:w-16 md:flex-col md:py-6 md:px-3 md:self-start md:sticky md:top-7 ${className}`}
+        fixed z-40 inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] flex-row px-2 py-1.5 gap-0 overflow-x-auto
+        md:static md:z-auto md:w-16 md:flex-col md:py-5 md:px-3 md:gap-0 md:self-start md:sticky md:top-7 md:bottom-auto
+        md:overflow-x-visible md:overflow-y-auto md:max-h-[calc(100dvh-3.5rem)] [scrollbar-width:none] ${className}`}
     >
-      <nav aria-label="Navigasi utama" className="flex flex-row md:flex-col items-center gap-6">
+      <nav aria-label="Navigasi utama" className="flex flex-row md:flex-col items-center gap-0 sm:gap-3 md:gap-4">
         {(readOnly ? (notif ? OFFICE_NAV : VIEWER_NAV) : MAIN_NAV).map((item) => (
           <NavLink key={item.href} item={item} pathname={pathname} />
         ))}
       </nav>
-      <div className="flex flex-row md:flex-col items-center gap-6 md:pt-10">
+      <div className="flex flex-row md:flex-col items-center gap-0 sm:gap-3 md:gap-4 md:pt-6">
         {!readOnly && <NavLink item={SETTINGS_NAV} pathname={pathname} />}
         {notif && <NavLink item={NOTIF_NAV} pathname={pathname} />}
         <form action={logout}>
@@ -117,7 +121,7 @@ function SidebarView({ pathname, className, readOnly, notif }: { pathname: strin
             type="submit"
             aria-label="Keluar"
             title="Keluar"
-            className="w-10 h-10 rounded-2xl flex items-center justify-center text-gray-400 hover:text-rose-400 transition"
+            className="w-9 h-9 md:w-10 md:h-10 rounded-2xl flex items-center justify-center text-gray-400 hover:text-rose-400 transition"
           >
             <Svg paths={[ICONS.logout]} />
           </button>
