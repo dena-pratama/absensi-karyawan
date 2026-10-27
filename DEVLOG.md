@@ -5,6 +5,30 @@ Format: entri terbaru di paling atas.
 
 ---
 
+## 2026-10-27 — Notifikasi berhasil tampil lebih singkat
+
+Masukan user: notifikasi "Perubahan disimpan" terlalu lama. `TOAST_MS` di `components/toast.tsx`: berhasil 1,5 detik
+(sebelumnya 3,2-3,6 detik), gagal tetap 3,5 detik supaya pesannya sempat dibaca. Dipakai `useToastTimer` (semua halaman
+pengaturan, kasbon, backup, akses, dll) dan Absensi Harian. `tsc`, `eslint`, `next build` lolos.
+
+---
+
+## 2026-10-27 — Jatah libur sebagai hari libur tetap (penanda di Rekap Bulanan)
+
+Permintaan user (pengganti fitur Libur yang dibatalkan): cukup penanda di web. Jatah libur = hari (Senin, Selasa, dll),
+diisi per karyawan di Tambah / Edit Karyawan, ditandai di Rekap Bulanan di samping nama.
+- Migrasi `20261104000000_weekly_day_off.sql` (sudah dijalankan user, berhasil): kolom `employee.day_off_weekdays smallint[]`
+  (0 Minggu ... 6 Sabtu, boleh lebih dari satu), check nilai 0-6. Diuji di PGlite.
+- Pengaturan > Karyawan: pilihan hari "Jatah Libur (hari libur tetap tiap minggu)" berupa tombol Senin ... Minggu;
+  baris tabel menampilkan "Libur Sen". Disimpan bersama "Terapkan Pengaturan".
+- Rekap Bulanan: badge "Libur Sen" di sebelah kanan nama; kolom hari itu diberi warna biru muda dan, bila belum diisi,
+  tanda "L"; legenda "Jadwal libur tetap (L)".
+- Hanya penanda: tidak mengubah absensi, persentase, kasbon, maupun app HP. Bila migrasi belum dijalankan, web tetap
+  jalan (kolom dibaca dengan fallback) dan menyimpan memberi pesan untuk menjalankan migrasi.
+- `tsc`, `eslint`, `next build` lolos.
+
+---
+
 ## 2026-10-27 — Rollback fitur Libur (kembali ke v.02.22 untuk bagian itu)
 
 Permintaan user: kembalikan web ke versi v.02.22, rapikan kode, dan perbaiki skema database yang sempat dijalankan.

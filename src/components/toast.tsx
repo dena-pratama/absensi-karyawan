@@ -7,6 +7,10 @@ import { BodyPortal } from "@/components/popup-overlay";
 
 export type ToastMessage = { text: string; error: boolean } | null;
 
+/** Lama tampil notifikasi (ms): berhasil cukup sekilas, pesan gagal lebih lama supaya sempat dibaca. */
+export const TOAST_MS = { success: 1500, error: 3500 } as const;
+export const toastDuration = (t: { error: boolean }) => (t.error ? TOAST_MS.error : TOAST_MS.success);
+
 type Variant = "success" | "edit" | "delete" | "error";
 
 /** Jenis notifikasi ditebak dari isi pesan, jadi semua pemanggil lama otomatis ikut bergaya baru. */

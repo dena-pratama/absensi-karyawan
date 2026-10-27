@@ -15,6 +15,8 @@ export type RosterEntry = {
   roleName: string;
   /** Cabang penempatan (bukan cabang backup / tempat absen). */
   branchId: string;
+  /** Hari libur tetap mingguan (0 Minggu ... 6 Sabtu); kosong bila belum diatur / migrasi belum jalan. */
+  dayOff: number[];
 };
 
 export type AttendanceEntry = {
@@ -37,6 +39,7 @@ type AssignmentRow = {
     phone_wa: string | null;
     contract_type: RosterEntry["contract"];
     join_date: string | null;
+    day_off_weekdays?: number[];
   } | null;
   job_role: { name: string } | null;
 };
@@ -81,17 +84,21 @@ async function queryRoster(
   to: string,
 ): Promise<RosterEntry[]> {
   const supabase = await createClient();
-  let q = supabase
-    .from("employee_assignment")
-    .select(
-      "employee_id, branch_id, job_role_id, employee:employee_id!inner(nik, full_name, phone_wa, contract_type, join_date), job_role:job_role_id(name)",
-    )
-    .eq("employee.is_active", true)
-    .lte("valid_from", to)
-    .or(`valid_to.is.null,valid_to.gte.${from}`)
-    .order("valid_from", { ascending: false });
-  q = "branchId" in by ? q.eq("branch_id", by.branchId) : q.in("employee_id", by.employeeIds);
-  const { data, error } = await q;
+  const build = (employeeCols: string) => {
+    const q = supabase
+      .from("employee_assignment")
+      .select(`employee_id, branch_id, job_role_id, employee:employee_id!inner(${employeeCols}), job_role:job_role_id(name)`)
+      .eq("employee.is_active", true)
+      .lte("valid_from", to)
+      .or(`valid_to.is.null,valid_to.gte.${from}`)
+      .order("valid_from", { ascending: false });
+    return "branchId" in by ? q.eq("branch_id", by.branchId) : q.in("employee_id", by.employeeIds);
+  };
+  const base = "nik, full_name, phone_wa, contract_type, join_date";
+  let res = await build(`${base}, day_off_weekdays`);
+  // Kolom hari libur tetap belum ada (migrasi weekly_day_off belum dijalankan) → muat tanpa kolom itu.
+  if (res.error?.code === "42703") res = await build(base);
+  const { data, error } = res;
   if (error) throw new Error(`Gagal memuat daftar karyawan: ${error.message}`);
 
   // Satu karyawan bisa punya >1 penempatan dalam rentang (mutasi) → ambil yang terbaru.
@@ -110,6 +117,7 @@ async function queryRoster(
       roleId: row.job_role_id,
       roleName: row.job_role?.name ?? "-",
       branchId: row.branch_id,
+      dayOff: (row.employee.day_off_weekdays ?? []).map(Number),
     });
   }
   return roster.sort((a, b) => a.nik.localeCompare(b.nik));

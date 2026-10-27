@@ -208,6 +208,7 @@ export function ApplyBar({
 }
 
 export { Toast } from "@/components/toast";
+import { toastDuration } from "@/components/toast";
 
 /**
  * Input kata sandi untuk akun LAIN (tambah / ubah akun), aman dari isi-otomatis browser.
@@ -329,11 +330,11 @@ export function Pagination({
   );
 }
 
-/** Hook toast sederhana. */
-export function useToastTimer(toast: unknown, clear: () => void) {
+/** Hook toast sederhana: notifikasi berhasil hilang cepat, pesan gagal lebih lama. */
+export function useToastTimer(toast: { error: boolean } | null, clear: () => void) {
   useEffect(() => {
     if (!toast) return;
-    const t = setTimeout(clear, 3600);
+    const t = setTimeout(clear, toastDuration(toast));
     return () => clearTimeout(t);
   }, [toast, clear]);
 }

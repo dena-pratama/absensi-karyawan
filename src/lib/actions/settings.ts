@@ -14,6 +14,7 @@ export type ApplyResult = { ok: true; applied: number } | { ok: false; error: st
 const isNew = (id: string) => id.startsWith("new-");
 
 function friendly(error: { code?: string; message: string }, context: string) {
+  if (error.code === "PGRST204" && error.message.includes("day_off_weekdays")) return "Kolom hari libur belum ada. Jalankan migrasi 20261104000000_weekly_day_off.sql di Supabase.";
   if (error.code === "23505") return `${context}: data sudah terdaftar (kode/NIK duplikat).`;
   if (error.code === "23514") return `${context}: format data tidak valid.`;
   if (error.code === "23503") return `${context}: data terkait tidak ditemukan.`;
@@ -115,6 +116,7 @@ function employeeColumns(e: EmployeeSetting) {
     contract_type: e.contract,
     join_date: e.joinDate || null,
     is_active: e.isActive,
+    day_off_weekdays: [...new Set(e.dayOff ?? [])].filter((d) => Number.isInteger(d) && d >= 0 && d <= 6),
   };
 }
 

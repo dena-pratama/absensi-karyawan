@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { openDatePicker } from "@/components/date-input";
-import { Toast } from "@/components/toast";
+import { Toast, toastDuration } from "@/components/toast";
 import { Icon } from "@/components/icon";
 import { confirmDialog } from "@/components/confirm-dialog";
 import { saveAttendance, type AttendanceChange } from "@/lib/actions/attendance";
@@ -111,7 +111,7 @@ export function AttendanceForm({
 
   useEffect(() => {
     if (!toast) return;
-    const t = setTimeout(() => setToast(null), 3200);
+    const t = setTimeout(() => setToast(null), toastDuration(toast));
     return () => clearTimeout(t);
   }, [toast]);
 

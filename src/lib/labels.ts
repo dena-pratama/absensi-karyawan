@@ -28,6 +28,12 @@ export const ATTENDANCE_LABEL: Record<AttendanceStatus, string> = {
 /** Kode cabang & NIK karyawan bebas format (huruf, angka, simbol, spasi): wajib diisi, maks. 30 karakter. */
 export const CODE_MAX = 30;
 
+/** Hari dalam minggu (sama dengan Date.getUTCDay / kolom employee.day_off_weekdays): 0 Minggu ... 6 Sabtu. */
+export const WEEKDAY_LABEL = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"] as const;
+export const WEEKDAY_SHORT = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"] as const;
+/** Urutan tampil: Senin dulu. */
+export const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0] as const;
+
 /** Role akun login (lihat migrasi role_based_rls & office_role). */
 export type AppRole = "admin" | "spv" | "office" | "karyawan";
 

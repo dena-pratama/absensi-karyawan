@@ -9,7 +9,7 @@ import { confirmDialog } from "@/components/confirm-dialog";
 import { applyEmployeeChanges, deleteEmployee } from "@/lib/actions/settings";
 import type { BranchSetting, EmployeeSetting, RoleSetting } from "@/lib/data/settings";
 import { formatDateLong, initials } from "@/lib/format";
-import { BRANCH_TYPE_LABEL, CODE_MAX } from "@/lib/labels";
+import { BRANCH_TYPE_LABEL, CODE_MAX, WEEKDAY_LABEL, WEEKDAY_ORDER, WEEKDAY_SHORT } from "@/lib/labels";
 import { StatCard } from "./_components/settings-skeleton";
 import { newId, useStaged } from "./_components/staged";
 import {
@@ -56,6 +56,7 @@ const emptyEmployee = (branchId: string, roleId: string): EmployeeSetting => ({
   nik: "",
   name: "",
   phone: "",
+  dayOff: [],
   contract: "tetap",
   joinDate: "",
   isActive: true,
@@ -274,6 +275,7 @@ export function EmployeeManager({
                             </div>
                             <div className="text-[10px] font-mono text-gray-400 truncate">
                               {e.nik} • {roleById.get(e.roleId)?.name ?? "-"}
+                              {e.dayOff.length > 0 && <span className="text-sky-300"> • Libur {e.dayOff.map((x) => WEEKDAY_SHORT[x]).join(", ")}</span>}
                             </div>
                             {/* Info kolom yang tersembunyi di layar sempit */}
                             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 text-[10px] text-gray-400 xl:hidden">
@@ -562,6 +564,36 @@ export function EmployeeManager({
                   </label>
                 ))}
               </div>
+            </fieldset>
+            <fieldset>
+              <legend className="block text-[11px] font-medium text-slate-300 mb-1.5">Jatah Libur (hari libur tetap tiap minggu)</legend>
+              <div className="flex flex-wrap gap-1.5">
+                {WEEKDAY_ORDER.map((d) => {
+                  const on = editing.dayOff.includes(d);
+                  return (
+                    <button
+                      key={d}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() =>
+                        setEditing({
+                          ...editing,
+                          dayOff: on ? editing.dayOff.filter((x) => x !== d) : [...editing.dayOff, d].sort((x, y) => ((x + 6) % 7) - ((y + 6) % 7)),
+                        })
+                      }
+                      className={`px-3 py-1.5 rounded-lg border text-xs transition ${
+                        on ? "bg-sky-500/15 border-sky-400/60 text-sky-200 font-semibold" : "bg-panel-inset border-line-strong text-slate-300 hover:border-sky-400/40"
+                      }`}
+                    >
+                      {WEEKDAY_LABEL[d]}
+                    </button>
+                  );
+                })}
+              </div>
+              <span className="block text-[10px] text-slate-500 mt-1">
+                {editing.dayOff.length ? `Libur setiap ${editing.dayOff.map((d) => WEEKDAY_LABEL[d]).join(", ")}. ` : "Belum ada hari libur tetap. "}
+                Ditandai di Rekap Bulanan; tidak mengubah absensi.
+              </span>
             </fieldset>
             <div className="flex items-center justify-between rounded-lg bg-panel-inset border border-line-strong px-3 py-2.5">
               <span className="text-xs text-slate-300">Status aktif dinas</span>

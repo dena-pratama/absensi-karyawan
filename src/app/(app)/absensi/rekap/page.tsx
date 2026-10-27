@@ -7,7 +7,7 @@ import { getJobRoles } from "@/lib/data/attendance";
 import { getMonthlyRekap } from "@/lib/data/rekap";
 import { getShellData } from "@/lib/data/shell";
 import { formatMonthLong, initials, monthOf, parseMonthParam, shiftMonth, todayWIB } from "@/lib/format";
-import type { AttendanceStatus } from "@/lib/labels";
+import { WEEKDAY_LABEL, WEEKDAY_SHORT, type AttendanceStatus } from "@/lib/labels";
 import { AbsensiHeader } from "../_components/absensi-header";
 import { RoleFilter } from "./role-filter";
 
@@ -36,6 +36,7 @@ const LEGEND = [
   { dot: "bg-emerald-500", text: "text-emerald-400", label: "Hadir (H)" },
   { dot: "bg-amber-500", text: "text-amber-400", label: "Sakit (S)" },
   { dot: "bg-rose-500", text: "text-rose-400", label: "Tidak Hadir (TH)" },
+  { dot: "bg-sky-500", text: "text-sky-300", label: "Jadwal libur tetap (L)" },
   { dot: "bg-slate-600", text: "text-slate-400", label: "Belum diisi (-)" },
 ];
 
@@ -199,12 +200,22 @@ async function Content({ searchParams }: { searchParams: PageProps<"/absensi/rek
                         )}
                       </span>
                     </span>
+                    {/* Jatah libur: hari libur tetap mingguan (diatur di Pengaturan > Karyawan) */}
+                    {r.dayOff.length > 0 && (
+                      <span
+                        title={`Libur tetap setiap ${r.dayOff.map((x) => WEEKDAY_LABEL[x]).join(", ")}`}
+                        className="ml-auto flex-shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-md bg-sky-500/10 text-sky-300 border border-sky-500/30 whitespace-nowrap"
+                      >
+                        Libur {r.dayOff.map((x) => WEEKDAY_SHORT[x]).join(", ")}
+                      </span>
+                    )}
                   </Link>
                 </td>
                 {days.map((d) => {
                   const status = r.cells[d.date];
                   const isToday = d.date === today;
-                  const bg = isToday ? "bg-cyan-950/20" : d.dow === 0 ? "bg-rose-950/15" : d.dow === 6 ? "bg-slate-800/30" : "";
+                  const offDay = r.dayOff.includes(d.dow);
+                  const bg = offDay ? "bg-sky-500/10" : isToday ? "bg-cyan-950/20" : d.dow === 0 ? "bg-rose-950/15" : d.dow === 6 ? "bg-slate-800/30" : "";
                   return (
                     <td key={d.date} className={`p-0.5 text-center border-r border-slate-800/50 ${bg}`}>
                       {status ? (
@@ -222,7 +233,13 @@ async function Content({ searchParams }: { searchParams: PageProps<"/absensi/rek
                           ↗
                         </span>
                       ) : (
-                        <span className="text-slate-600 text-[10px]">{d.date > today ? "•" : "-"}</span>
+                        offDay ? (
+                          <span title={`${d.day} ${formatMonthLong(month)}: jadwal libur tetap`} className="text-sky-400/80 text-[10px] font-semibold">
+                            L
+                          </span>
+                        ) : (
+                          <span className="text-slate-600 text-[10px]">{d.date > today ? "•" : "-"}</span>
+                        )
                       )}
                     </td>
                   );

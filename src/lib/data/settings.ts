@@ -18,6 +18,8 @@ export type EmployeeSetting = {
   roleId: string;
   /** Mutasi terjadwal (penempatan yang mulai setelah hari ini). */
   scheduled: { branchId: string; roleId: string; from: string } | null;
+  /** Hari libur tetap mingguan (0 Minggu ... 6 Sabtu), penanda di Rekap Bulanan. */
+  dayOff: number[];
   /** Form saja: tanggal efektif mutasi bila cabang/jabatan diubah ("" = hari ini). */
   moveDate: string;
   /** Form saja: batalkan mutasi terjadwal. */
@@ -91,10 +93,13 @@ async function assignmentsFrom() {
 
 export async function getEmployeeSettings(): Promise<EmployeeSetting[]> {
   const supabase = await client();
-  const [{ data, error }, assignments] = await Promise.all([
-    supabase.from("employee").select("id, nik, full_name, phone_wa, contract_type, join_date, is_active").order("nik"),
-    assignmentsFrom(),
-  ]);
+  const cols = "id, nik, full_name, phone_wa, contract_type, join_date, is_active";
+  const query = (c: string) => supabase.from("employee").select(c).order("nik");
+  const [first, assignments] = await Promise.all([query(`${cols}, day_off_weekdays`), assignmentsFrom()]);
+  // Kolom hari libur tetap belum ada (migrasi weekly_day_off belum dijalankan) → muat tanpa kolom itu.
+  const res = first.error?.code === "42703" ? await query(cols) : first;
+  const { error } = res;
+  const data = res.data as unknown as Record<string, unknown>[] | null;
   if (error) throw new Error(`Gagal memuat karyawan: ${error.message}`);
   const byEmployee = new Map(assignments.current.map((a) => [a.employee_id, a]));
   const scheduledBy = new Map<string, AssignmentLite>();
@@ -110,6 +115,7 @@ export async function getEmployeeSettings(): Promise<EmployeeSetting[]> {
       contract: e.contract_type as EmployeeSetting["contract"],
       joinDate: (e.join_date as string | null) ?? "",
       isActive: e.is_active as boolean,
+      dayOff: ((e.day_off_weekdays as number[] | undefined) ?? []).map(Number).sort((x, y) => ((x + 6) % 7) - ((y + 6) % 7)),
       branchId: a?.branch_id ?? "",
       roleId: a?.job_role_id ?? "",
       scheduled: (() => {

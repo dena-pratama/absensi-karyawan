@@ -194,6 +194,7 @@ Jalankan file berikut **berurutan** di **Supabase → SQL Editor**:
 | 17 | `supabase/migrations/20261030000000_wfa.sql` | WFA untuk SPV & Office; Office deteksi outlet otomatis. |
 | 18 | `supabase/migrations/20261031000000_reset_data.sql` | Fungsi `admin_reset_data()` untuk Pengaturan > Reset Data. |
 | 19 | `supabase/migrations/20261103000000_rollback_day_off.sql` | Membatalkan fitur Libur (yang sempat dijalankan): data 'libur' → 'tidak_hadir', status kembali 3, fungsi & tabel libur dihapus. Aman untuk instalasi baru. |
+| 20 | `supabase/migrations/20261104000000_weekly_day_off.sql` | Hari libur tetap mingguan per karyawan (`employee.day_off_weekdays`), penanda di Rekap Bulanan. |
 | — | `supabase/seed_demo.sql` | *Opsional* — data demo (cabang & karyawan fiktif). |
 
 > **Instalasi baru:** jalankan migrasi #6 **setelah** membuat akun admin pertama (langkah 2), atau jalankan ulang file itu setelahnya. Selama tabel `app_user` masih kosong, akun yang sudah ada otomatis dijadikan admin.
