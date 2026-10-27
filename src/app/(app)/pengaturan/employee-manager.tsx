@@ -24,8 +24,7 @@ import {
   Toast,
   Toggle,
   useToastTimer,
-  DeleteButton,
-} from "./_components/ui";
+  RowActions, } from "./_components/ui";
 
 const PER_PAGE = 10;
 
@@ -245,17 +244,18 @@ export function EmployeeManager({
               </span>
             )}
           </div>
-          <div className="overflow-x-auto">
+          {/* Container query: kolom disembunyikan menurut lebar kartu (bukan layar), jadi kolom Aksi selalu terlihat */}
+          <div className="overflow-x-auto @container">
             {/* Responsif: kolom sekunder disembunyikan di layar sempit dan ditampilkan di bawah nama, jadi tabel tidak perlu digeser. */}
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="text-[11px] uppercase tracking-wider text-gray-400 border-b border-line">
                   <th scope="col" className="py-3 px-5 font-semibold">NIK / Nama Staf</th>
-                  <th scope="col" className="py-3 px-4 font-semibold hidden md:table-cell">Cabang Penempatan</th>
-                  <th scope="col" className="py-3 px-4 font-semibold hidden xl:table-cell">Status Kontrak</th>
-                  <th scope="col" className="py-3 px-4 font-semibold hidden lg:table-cell">No. WA (+62)</th>
+                  <th scope="col" className="py-3 px-4 font-semibold hidden @xl:table-cell">Cabang Penempatan</th>
+                  <th scope="col" className="py-3 px-4 font-semibold hidden @5xl:table-cell">Status Kontrak</th>
+                  <th scope="col" className="py-3 px-4 font-semibold hidden @4xl:table-cell">No. WA (+62)</th>
                   <th scope="col" className="py-3 px-3 font-semibold text-center">Aktif</th>
-                  <th scope="col" className="py-3 px-3 font-semibold text-right">Aksi</th>
+                  <th scope="col" className="py-3 px-3 font-semibold text-right w-px whitespace-nowrap">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
@@ -263,7 +263,7 @@ export function EmployeeManager({
                   const b = branchById.get(e.branchId);
                   return (
                     <tr key={e.id} className={`hover:bg-panel-raised/50 transition ${e.isActive ? "" : "opacity-60"}`}>
-                      <td className="py-3 px-4 sm:px-5 max-w-0 w-full md:w-auto md:max-w-none">
+                      <td className="py-3 px-4 sm:px-5 max-w-0 w-full @xl:w-auto @xl:max-w-none">
                         <div className="flex items-center gap-3 min-w-0">
                           <span className={`w-8 h-8 rounded-full ring-1 font-bold flex items-center justify-center text-[11px] flex-shrink-0 ${AVATAR[i % AVATAR.length]}`}>
                             {initials(e.name || "?")}
@@ -278,15 +278,15 @@ export function EmployeeManager({
                               {e.dayOff.length > 0 && <span className="text-sky-300"> • Libur {e.dayOff.map((x) => WEEKDAY_SHORT[x]).join(", ")}</span>}
                             </div>
                             {/* Info kolom yang tersembunyi di layar sempit */}
-                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 text-[10px] text-gray-400 xl:hidden">
-                              <span className="md:hidden font-mono text-gray-300">{b ? b.code : "Belum ditempatkan"}</span>
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 text-[10px] text-gray-400 @5xl:hidden">
+                              <span className="@xl:hidden font-mono text-gray-300">{b ? b.code : "Belum ditempatkan"}</span>
                               <span className={`px-1.5 py-px rounded-full border font-semibold ${CONTRACT[e.contract].cls}`}>{CONTRACT[e.contract].label}</span>
-                              <span className="lg:hidden font-mono">{formatPhone(e.phone)}</span>
+                              <span className="@4xl:hidden font-mono">{formatPhone(e.phone)}</span>
                             </div>
                           </div>
                         </div>
                       </td>
-                      <td className="py-3 px-4 hidden md:table-cell">
+                      <td className="py-3 px-4 hidden @xl:table-cell">
                         {b ? (
                           <div className="flex items-center gap-2.5 min-w-0 max-w-[240px]">
                             <span className="w-7 h-7 rounded-lg bg-cyan-500/10 text-brand-ink flex items-center justify-center flex-shrink-0">
@@ -316,33 +316,25 @@ export function EmployeeManager({
                           </span>
                         )}
                       </td>
-                      <td className="py-3 px-4 hidden xl:table-cell">
+                      <td className="py-3 px-4 hidden @5xl:table-cell">
                         <span className={`px-2 py-0.5 rounded-full border text-[11px] font-semibold ${CONTRACT[e.contract].cls}`}>
                           {CONTRACT[e.contract].label}
                         </span>
                       </td>
-                      <td className="py-3 px-4 font-mono text-gray-300 whitespace-nowrap hidden lg:table-cell">{formatPhone(e.phone)}</td>
+                      <td className="py-3 px-4 font-mono text-gray-300 whitespace-nowrap hidden @4xl:table-cell">{formatPhone(e.phone)}</td>
                       <td className="py-3 px-3 text-center">
                         <Toggle checked={e.isActive} onChange={(v) => staged.patch(e.id, { isActive: v })} label={`Status aktif ${e.name}`} />
                       </td>
-                      <td className="py-3 px-3 text-right">
-                        <button
-                          type="button"
-                          title="Edit Staf"
-                          aria-label={`Edit ${e.name}`}
-                          onClick={() => {
+                      <td className="py-3 px-3 text-right w-px whitespace-nowrap">
+                        <RowActions
+                          label={e.name}
+                          onEdit={() => {
                             setFormError(null);
                             setEditing(e);
                           }}
-                          className="p-1 text-gray-400 hover:text-cyan-400 transition"
-                        >
-                          <Icon name="edit_square" className="text-[18px]" />
-                        </button>
-                        <DeleteButton
-                          label={e.name}
-                          onClick={() => removeRow(e.id, e.name)}
-                          disabled={saving || (staged.dirty && !staged.isNew(e.id))}
-                          title={staged.dirty && !staged.isNew(e.id) ? "Terapkan atau reset perubahan dulu" : "Hapus"}
+                          onDelete={() => removeRow(e.id, e.name)}
+                          deleteDisabled={saving || (staged.dirty && !staged.isNew(e.id))}
+                          deleteTitle={staged.dirty && !staged.isNew(e.id) ? "Terapkan atau reset perubahan dulu" : "Hapus"}
                         />
                       </td>
                     </tr>

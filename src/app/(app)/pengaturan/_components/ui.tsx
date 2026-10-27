@@ -266,6 +266,43 @@ export function SecretInput({
   );
 }
 
+/**
+ * Tombol Edit + Hapus di kolom Aksi tabel. Selalu satu baris (tidak turun ke bawah) dan berbingkai
+ * supaya terlihat jelas.
+ */
+export function RowActions({
+  label,
+  onEdit,
+  onDelete,
+  deleteDisabled,
+  deleteTitle,
+}: {
+  label: string;
+  onEdit: () => void;
+  onDelete: () => void;
+  deleteDisabled?: boolean;
+  deleteTitle?: string;
+}) {
+  const btn = "w-8 h-8 inline-flex items-center justify-center rounded-lg border transition disabled:opacity-40 disabled:pointer-events-none";
+  return (
+    <div className="inline-flex items-center justify-end gap-1.5 whitespace-nowrap">
+      <button type="button" title="Edit" aria-label={`Edit ${label}`} onClick={onEdit} className={`${btn} border-line-strong text-gray-300 hover:text-cyan-400 hover:border-cyan-500/50`}>
+        <Icon name="edit_square" className="text-[17px]" />
+      </button>
+      <button
+        type="button"
+        title={deleteTitle ?? "Hapus"}
+        aria-label={`Hapus ${label}`}
+        onClick={onDelete}
+        disabled={deleteDisabled}
+        className={`${btn} border-line-strong text-gray-400 hover:text-rose-400 hover:border-rose-500/50`}
+      >
+        <Icon name="delete" className="text-[17px]" />
+      </button>
+    </div>
+  );
+}
+
 /** Tombol hapus baris tabel (ikon tong sampah). */
 export function DeleteButton({ label, disabled, title, onClick }: { label: string; disabled?: boolean; title?: string; onClick: () => void }) {
   return (

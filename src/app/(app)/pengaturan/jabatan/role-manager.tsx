@@ -8,7 +8,7 @@ import { applyRoleChanges, deleteRole } from "@/lib/actions/settings";
 import type { RoleSetting } from "@/lib/data/settings";
 import { StatCard } from "../_components/settings-skeleton";
 import { newId, useStaged } from "../_components/staged";
-import { DeleteButton, ApplyBar, ChangeBadge, Field, filterCls, inputCls, Modal, Toast, Toggle, useToastTimer } from "../_components/ui";
+import { RowActions, ApplyBar, ChangeBadge, Field, filterCls, inputCls, Modal, Toast, Toggle, useToastTimer } from "../_components/ui";
 
 export function RoleManager({
   roles,
@@ -131,7 +131,7 @@ export function RoleManager({
                 <th scope="col" className="py-3 px-4 font-semibold">Nama Jabatan</th>
                 <th scope="col" className="py-3 px-4 font-semibold min-w-[200px]">Staf Terpetakan</th>
                 <th scope="col" className="py-3 px-4 font-semibold text-center">Status Aktif</th>
-                <th scope="col" className="py-3 px-4 font-semibold text-right">Aksi</th>
+                <th scope="col" className="py-3 px-4 font-semibold text-right w-px whitespace-nowrap">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
@@ -155,24 +155,16 @@ export function RoleManager({
                   <td className="py-3 px-4 text-center">
                     <Toggle checked={r.isActive} onChange={(v) => staged.patch(r.id, { isActive: v })} label={`Status ${r.name}`} />
                   </td>
-                  <td className="py-3 px-4 text-right">
-                    <button
-                      type="button"
-                      title="Edit Jabatan"
-                      aria-label={`Edit ${r.name}`}
-                      onClick={() => {
-                        setFormError(null);
-                        setEditing(r);
-                      }}
-                      className="p-1 text-gray-400 hover:text-cyan-400 transition"
-                    >
-                      <Icon name="edit_square" className="text-[18px]" />
-                    </button>
-                        <DeleteButton
+                  <td className="py-3 px-4 text-right w-px whitespace-nowrap">
+                    <RowActions
                           label={r.name}
-                          onClick={() => removeRow(r.id, r.name)}
-                          disabled={saving || (staged.dirty && !staged.isNew(r.id))}
-                          title={staged.dirty && !staged.isNew(r.id) ? "Terapkan atau reset perubahan dulu" : "Hapus"}
+                          onEdit={() => {
+                            setFormError(null);
+                            setEditing(r);
+                          }}
+                          onDelete={() => removeRow(r.id, r.name)}
+                          deleteDisabled={saving || (staged.dirty && !staged.isNew(r.id))}
+                          deleteTitle={staged.dirty && !staged.isNew(r.id) ? "Terapkan atau reset perubahan dulu" : "Hapus"}
                         />
                   </td>
                 </tr>

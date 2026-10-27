@@ -22,8 +22,7 @@ import {
   Toast,
   Toggle,
   useToastTimer,
-  DeleteButton,
-} from "../_components/ui";
+  RowActions, } from "../_components/ui";
 
 export type AuditView = { id: number; text: string; subject: string; when: string };
 
@@ -254,7 +253,7 @@ export function BranchManager({
                   <th scope="col" className="py-3 px-4 font-semibold">Staf</th>
                   <th scope="col" className="py-3 px-4 font-semibold">Jam Gate</th>
                   <th scope="col" className="py-3 px-4 font-semibold text-center">Status</th>
-                  <th scope="col" className="py-3 px-4 font-semibold text-right">Aksi</th>
+                  <th scope="col" className="py-3 px-4 font-semibold text-right w-px whitespace-nowrap">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
@@ -301,24 +300,16 @@ export function BranchManager({
                       <td className="py-3 px-4 text-center">
                         <Toggle checked={b.active} onChange={(v) => staged.patch(b.id, { active: v })} label={`Status ${b.code}`} />
                       </td>
-                      <td className="py-3 px-4 text-right">
-                        <button
-                          type="button"
-                          title="Edit Hub"
-                          aria-label={`Edit ${b.code}`}
-                          onClick={() => {
+                      <td className="py-3 px-4 text-right w-px whitespace-nowrap">
+                        <RowActions
+                          label={b.code}
+                          onEdit={() => {
                             setFormError(null);
                             setEditing(b);
                           }}
-                          className="p-1 text-gray-400 hover:text-cyan-400 transition"
-                        >
-                          <Icon name="edit_square" className="text-[18px]" />
-                        </button>
-                        <DeleteButton
-                          label={b.code}
-                          onClick={() => removeRow(b.id, b.code)}
-                          disabled={saving || (staged.dirty && !staged.isNew(b.id))}
-                          title={staged.dirty && !staged.isNew(b.id) ? "Terapkan atau reset perubahan dulu" : "Hapus"}
+                          onDelete={() => removeRow(b.id, b.code)}
+                          deleteDisabled={saving || (staged.dirty && !staged.isNew(b.id))}
+                          deleteTitle={staged.dirty && !staged.isNew(b.id) ? "Terapkan atau reset perubahan dulu" : "Hapus"}
                         />
                       </td>
                     </tr>

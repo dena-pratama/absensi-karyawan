@@ -5,6 +5,18 @@ Format: entri terbaru di paling atas.
 
 ---
 
+## 2026-10-27 — Kolom Aksi tabel Karyawan / Cabang / Jabatan rapi
+
+Masukan user (screenshot): tombol Edit & Hapus di Manajemen Karyawan terpotong / turun ke bawah.
+- Komponen `RowActions` (pengaturan/_components/ui.tsx): tombol Edit + Hapus berbingkai 32px, selalu satu baris;
+  dipakai di tabel Karyawan, Cabang, Jabatan. Kolom Aksi `w-px whitespace-nowrap` (selebar isinya, tidak terjepit).
+- Tabel Karyawan memakai container query: kolom Cabang / No. WA / Kontrak disembunyikan menurut lebar kartu (bukan lebar
+  layar), jadi kolom Aksi tidak terdorong keluar kartu saat ada sidebar.
+- Dicek di browser dengan data contoh pada lebar kartu 1040 / 800 / 560 px: tabel tidak melebihi kartu, Edit & Hapus
+  terlihat berdampingan. `tsc`, `eslint`, `next build` lolos.
+
+---
+
 ## 2026-10-27 — Notifikasi berhasil tampil lebih singkat
 
 Masukan user: notifikasi "Perubahan disimpan" terlalu lama. `TOAST_MS` di `components/toast.tsx`: berhasil 1,5 detik
